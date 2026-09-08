@@ -54,12 +54,12 @@
           <legend class="sr-only">选择日期、校区和节次</legend>
           <div class="primary-filters">
             <div class="field date-field">
-              <label for="date-picker">日期 <span id="week-label"></span></label>
+              <label for="date">日期 <span id="week-label"></span></label>
               <div class="date-control">
                 <button type="button" id="previous-day" class="icon-button" aria-label="前一天"><svg aria-hidden="true"><use href="./icons.svg#chevron-left"/></svg></button>
                 <div class="date-picker-shell">
-                  <button type="button" id="date-picker" class="date-picker-button" aria-haspopup="dialog"><svg aria-hidden="true"><use href="./icons.svg#calendar"/></svg><span id="date-display">选择日期</span></button>
-                  <input id="date" type="date" required tabindex="-1" aria-label="查询日期">
+                  <span id="date-picker" class="date-picker-button" aria-hidden="true"><svg><use href="./icons.svg#calendar"/></svg><span id="date-display">选择日期</span></span>
+                  <input id="date" type="date" required aria-label="查询日期">
                 </div>
                 <button type="button" id="next-day" class="icon-button" aria-label="后一天"><svg aria-hidden="true"><use href="./icons.svg#chevron-right"/></svg></button>
                 <button type="button" id="today" class="today-button">今天</button>

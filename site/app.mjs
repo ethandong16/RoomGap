@@ -226,7 +226,6 @@ async function initialize() {
 $('query-form').addEventListener('submit',event=>{event.preventDefault();renderResults();});
 controls.date.addEventListener('change',loadSelectedDay);
 controls.campus.addEventListener('change',()=>{updateBuildings();saveCampus();renderResults();});
-$('date-picker').addEventListener('click',()=>{try{controls.date.showPicker();}catch{controls.date.focus();controls.date.click();}});
 $('period-picker').addEventListener('click',event=>{
   const button=event.target.closest('button[data-period]');if(!button)return;
   const period=Number(button.dataset.period);

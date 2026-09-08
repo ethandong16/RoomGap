@@ -40,8 +40,11 @@ try{
    await page.locator('.period-clear').click();
    assert.equal(await page.locator('.period-option[aria-pressed="true"]').count(),0);
    assert.equal(await page.locator('#date-picker').isVisible(),true);
-   await page.evaluate(()=>{window.__roomgapPickerOpened=false;HTMLInputElement.prototype.showPicker=function(){window.__roomgapPickerOpened=true;};});
-   await page.locator('#date-picker').click();assert.equal(await page.evaluate(()=>window.__roomgapPickerOpened),true);
+   const dateHitTarget=await page.locator('.date-picker-shell').evaluate(shell=>{
+     const rect=shell.getBoundingClientRect();
+     return document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2)?.id;
+   });
+   assert.equal(dateHitTarget,'date');
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
    await page.screenshot({path:'artifacts/desktop.png'});
  });
@@ -137,6 +140,10 @@ try{
    const c=await context({viewport:{width:390,height:1000},isMobile:true,hasTouch:true,deviceScaleFactor:1}),p=await c.newPage();
    await p.goto(base);await settled(p);await setPeriods(p,[1,3,6]);await ready(p);
    assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+   assert.equal(await p.locator('.date-picker-shell').evaluate(shell=>{
+     const rect=shell.getBoundingClientRect();
+     return document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2)?.id;
+   }),'date');
    assert.equal(await p.locator('.period-option').count(),13);
    assert.equal(await p.locator('.period-option').first().evaluate(element=>element.getBoundingClientRect().height>=44),true);
    await p.screenshot({path:'artifacts/mobile.png'});
