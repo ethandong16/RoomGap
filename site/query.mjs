@@ -1,4 +1,4 @@
-import {intervalMask, freeIntervals, FULL_DAY_MASK} from './semester-model.mjs';
+import {freeIntervals, FULL_DAY_MASK} from './semester-model.mjs';
 
 export const candidateKinds = new Set(['classroom', 'unspecified']);
 const collator = new Intl.Collator('zh-CN', {numeric: true});
@@ -32,8 +32,14 @@ export function compareRooms(a, b) {
 
 export function selectRooms(rooms, day, filters) {
   const {campus = '', building = '', search = '', minCapacity = 0, start = 1, end = 2} = filters;
-  if (!Number.isInteger(start) || !Number.isInteger(end) || start < 1 || end > 13 || start > end) throw new Error('请选择有效的起止节次');
-  const required = intervalMask(start, end);
+  let periods=filters.periods;
+  if(periods===undefined){
+    if(!Number.isInteger(start)||!Number.isInteger(end)||start<1||end>13||start>end)throw new Error('请选择有效的起止节次');
+    periods=Array.from({length:end-start+1},(_,index)=>start+index);
+  }
+  if (!Array.isArray(periods) || periods.some(period => !Number.isInteger(period) || period < 1 || period > 13) || new Set(periods).size !== periods.length) throw new Error('请选择有效的节次');
+  if (!periods.length) return [];
+  const required = periods.reduce((mask, period) => mask | (1 << (period - 1)), 0);
   const needle = search.trim().toLocaleLowerCase();
   return day.rooms.flatMap(state => {
     const room = rooms[state.room];
@@ -42,9 +48,11 @@ export function selectRooms(rooms, day, filters) {
     if (needle && !roomTitle(room).toLocaleLowerCase().includes(needle)) return [];
     // Never let occupied or unknown periods enter an available result, even in malformed input.
     if ((state.freeMask & required) !== required || ((state.unknownMask | state.occupiedMask) & required)) return [];
-    const interval = freeIntervals(state.freeMask).find(([a, b]) => a <= start && b >= end);
-    return [{room, state, interval, continuousLength: interval[1] - interval[0] + 1}];
-  }).sort((a, b) => b.continuousLength - a.continuousLength || compareRooms(a.room, b.room));
+    const relevantIntervals = freeIntervals(state.freeMask).filter(([a, b]) => periods.some(period => period >= a && period <= b));
+    const continuousLength = Math.max(...relevantIntervals.map(([a, b]) => b - a + 1));
+    const relevantFreeLength = relevantIntervals.reduce((total, [a, b]) => total + b - a + 1, 0);
+    return [{room, state, continuousLength, relevantFreeLength}];
+  }).sort((a, b) => b.continuousLength - a.continuousLength || b.relevantFreeLength - a.relevantFreeLength || compareRooms(a.room, b.room));
 }
 
 export function validateDay(day, date, rooms, digest) {

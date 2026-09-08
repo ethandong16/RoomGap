@@ -12,21 +12,36 @@ async function context(options={}){
   c.on('page',p=>{p.on('pageerror',error=>errors.push(error.message));});
   return c;
 }
+async function settled(page){await page.waitForFunction(()=>document.querySelector('#results-section').getAttribute('aria-busy')==='false');}
 async function ready(page){await page.waitForFunction(()=>document.querySelector('#results-section').getAttribute('aria-busy')==='false'&&document.querySelectorAll('.room-card').length>0);}
 async function count(page,n){await page.waitForFunction(n=>document.querySelector('#result-count').textContent===`${n} 间`,n);}
-async function date(page,value){await page.locator('#date').fill(value);}
+async function date(page,value){await page.locator('#date').evaluate((element,next)=>{element.value=next;element.dispatchEvent(new Event('change',{bubbles:true}));},value);}
+async function setPeriods(page,periods){
+  for(const period of periods){
+    const button=page.locator(`.period-option[data-period="${period}"]`);
+    if(await button.getAttribute('aria-pressed')!=='true')await button.click();
+  }
+  const selected=await page.locator('.period-option[aria-pressed="true"]').evaluateAll(buttons=>buttons.map(button=>Number(button.dataset.period)));
+  for(const period of selected.filter(period=>!periods.includes(period)))await page.locator(`.period-option[data-period="${period}"]`).click();
+}
 try{
  const desktop=await context(),page=await desktop.newPage();
- await page.goto(base);await ready(page);
+ await page.goto(base);await settled(page);
  await check('desktop initial screen and content',async()=>{
    assert.equal(await page.locator('#candidate-count').textContent(),'384');
    assert.equal(await page.locator('#campus-count').textContent(),'3');
-   assert.equal(await page.locator('#start-period').inputValue(),'1');assert.equal(await page.locator('#end-period').inputValue(),'2');
+   assert.equal(await page.locator('.period-option').count(),13);
+   assert.deepEqual(await page.locator('.period-option[aria-pressed="true"]').evaluateAll(buttons=>buttons.map(button=>Number(button.dataset.period))),[]);
+   assert.equal(await page.locator('#period-selection-count').textContent(),'未选节次');
+   assert.match(await page.locator('#state-panel').textContent(),/请选择节次/);
+   assert.equal(await page.locator('#date-picker').isVisible(),true);
+   await page.evaluate(()=>{window.__roomgapPickerOpened=false;HTMLInputElement.prototype.showPicker=function(){window.__roomgapPickerOpened=true;};});
+   await page.locator('#date-picker').click();assert.equal(await page.evaluate(()=>window.__roomgapPickerOpened),true);
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
    await page.screenshot({path:'artifacts/desktop.png'});
  });
  await check('known 19-room query and combined filters',async()=>{
-   await date(page,'2026-09-08');await page.locator('#campus').selectOption('04');await page.locator('#end-period').selectOption('4');await count(page,19);
+   await setPeriods(page,[1,2,3,4]);await ready(page);await date(page,'2026-09-08');await page.locator('#campus').selectOption('04');await count(page,19);
    await page.locator('#building').selectOption('04/11');await page.locator('#search').fill('111');await page.locator('#capacity').selectOption('100');await count(page,1);
    assert.match(await page.locator('.room-card h3').textContent(),/111/);
  });
@@ -44,18 +59,29 @@ try{
    await page.locator('#state-action').click();await count(page,19);
  });
  await check('campus preference and accessible progressive results',async()=>{
-   await page.reload();await ready(page);assert.equal(await page.locator('#campus').inputValue(),'04');
+   await page.reload();await settled(page);assert.equal(await page.locator('#campus').inputValue(),'04');await setPeriods(page,[1,2]);await ready(page);
    await page.locator('#campus').selectOption('');await ready(page);
    assert.equal(await page.locator('.room-card').count(),24);
    await page.locator('#load-more').click();assert.equal(await page.locator('.room-card').count(),48);
    assert.equal(await page.locator('.room-card').nth(24).locator('button').evaluate(el=>el===document.activeElement),true);
  });
- await check('term limits, cross-month navigation and period normalization',async()=>{
+ await check('reset restores every query filter',async()=>{
+   await date(page,'2026-09-10');await page.locator('#campus').selectOption('04');await setPeriods(page,[3,6]);
+   await page.locator('#building').selectOption('04/11');await page.locator('#search').fill('111');await page.locator('#capacity').selectOption('60');
+   await page.locator('#reset-filters').click();await settled(page);
+   assert.equal(await page.locator('#date').inputValue(),'2026-09-08');assert.equal(await page.locator('#campus').inputValue(),'');
+   assert.equal(await page.locator('#building').inputValue(),'');assert.equal(await page.locator('#search').inputValue(),'');assert.equal(await page.locator('#capacity').inputValue(),'0');
+   assert.equal(await page.locator('.period-option[aria-pressed="true"]').count(),0);assert.match(await page.locator('#state-panel').textContent(),/请选择节次/);
+   assert.equal(await page.evaluate(()=>localStorage.getItem('roomgap-campus')),'');
+ });
+ await check('term limits, cross-month navigation and non-contiguous periods',async()=>{
+   await setPeriods(page,[1,2]);await ready(page);
    await date(page,'2026-08-31');await ready(page);assert.equal(await page.locator('#previous-day').isDisabled(),true);
    await page.locator('#next-day').click();await ready(page);assert.equal(await page.locator('#date').inputValue(),'2026-09-01');
    await date(page,'2027-01-17');await ready(page);assert.equal(await page.locator('#next-day').isDisabled(),true);
-   await page.locator('#start-period').selectOption('9');assert.equal(await page.locator('#end-period').inputValue(),'9');
-   await page.locator('#end-period').selectOption('4');assert.equal(await page.locator('#start-period').inputValue(),'4');
+   await setPeriods(page,[4,9]);
+   assert.deepEqual(await page.locator('.period-option[aria-pressed="true"]').evaluateAll(buttons=>buttons.map(button=>Number(button.dataset.period))),[4,9]);
+   assert.match(await page.locator('#selection-summary').textContent(),/第 4、9 节/);
    await date(page,'2026-08-30');assert.equal(await page.locator('.room-card').count(),0);
    await date(page,'2026-09-08');await ready(page);
  });
@@ -63,10 +89,10 @@ try{
    const c=await context(),p=await c.newPage();let fail=true;
    await p.route('**/schema.json',route=>fail?(fail=false,route.fulfill({status:503,body:'unavailable'})):route.continue());
    await p.goto(base);await p.locator('#state-action').waitFor();assert.equal(await p.locator('.room-card').count(),0);
-   await p.locator('#state-action').click();await ready(p);await c.close();
+   await p.locator('#state-action').click();await settled(p);await setPeriods(p,[1,2]);await ready(p);await c.close();
  });
  await check('daily load failure and version mismatch recover without false availability',async()=>{
-   await page.locator('#start-period').selectOption('1');await page.locator('#end-period').selectOption('2');
+   await setPeriods(page,[1,2]);
    let fail=true;
    await page.route('**/days/2026-09-11.json',route=>fail?(fail=false,route.fulfill({status:503,body:'unavailable'})):route.continue());
    await date(page,'2026-09-11');await page.locator('#state-action').waitFor();assert.equal(await page.locator('.room-card').count(),0);
@@ -93,18 +119,20 @@ try{
  });
  await check('mobile layout, touch details and narrow viewport',async()=>{
    const c=await context({viewport:{width:390,height:1000},isMobile:true,hasTouch:true,deviceScaleFactor:1}),p=await c.newPage();
-   await p.goto(base);await ready(p);
+   await p.goto(base);await settled(p);await setPeriods(p,[1,3,6]);await ready(p);
    assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+   assert.equal(await p.locator('.period-option').count(),13);
+   assert.equal(await p.locator('.period-option').first().evaluate(element=>element.getBoundingClientRect().height>=44),true);
    await p.screenshot({path:'artifacts/mobile.png'});
    await p.locator('.room-card button').first().click();assert.equal(await p.locator('#room-dialog').isVisible(),true);
-   assert.equal(await p.locator('.detail-period').count(),13);await p.screenshot({path:'artifacts/mobile-detail.png'});
-   await p.locator('#close-dialog').click();await p.setViewportSize({width:320,height:900});
+   assert.equal(await p.locator('.detail-period').count(),13);assert.equal(await p.locator('.detail-period.chosen').count(),3);await p.screenshot({path:'artifacts/mobile-detail.png'});
+   await p.locator('#close-dialog').click();await p.setViewportSize({width:320,height:900});await p.evaluate(()=>scrollTo(0,0));
    assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
    await p.screenshot({path:'artifacts/mobile-320.png'});await c.close();
  });
  await check('out-of-term default is explicit',async()=>{
    const c=await context(),p=await c.newPage();await p.clock.setFixedTime(new Date('2027-02-01T04:00:00Z'));
-   await p.goto(base);await ready(p);assert.equal(await p.locator('#date').inputValue(),'2026-08-31');
+   await p.goto(base);await settled(p);assert.equal(await p.locator('#date').inputValue(),'2026-08-31');
    assert.equal(await p.locator('#range-notice').isVisible(),true);assert.equal(await p.locator('#today').isDisabled(),true);await c.close();
  });
  assert.deepEqual(errors,[]);

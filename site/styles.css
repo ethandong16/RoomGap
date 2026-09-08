@@ -16,3 +16,26 @@ dialog{border:1px solid var(--line);border-radius:18px;padding:0;width:min(620px
 @media(max-width:720px){.primary-filters{grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr)}.results-header{flex-direction:column;align-items:stretch;gap:8px}.sort-label{align-self:flex-end;max-width:none}.detail-periods{grid-template-columns:repeat(4,minmax(0,1fr))}.detail-period{padding:11px 3px;gap:6px}.detail-period strong{font-size:12px}}
 @media(max-width:360px){.primary-filters{grid-template-columns:1fr}.period-inputs select{font-size:12px}.field label>span{display:inline}.results-header h2{font-size:18px}.detail-periods{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+/* Direct calendar and independent period selection. */
+.primary-filters{grid-template-columns:minmax(0,1.4fr) minmax(220px,.6fr);gap:23px 27px}
+.field label,.period-label{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:650;margin-bottom:11px;gap:4px}
+.period-label>span:last-child{font-size:10px;font-weight:400;color:var(--muted)}
+.date-control{height:46px}
+.date-picker-shell{position:relative;min-width:0;flex:1;height:100%}
+.date-picker-shell input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:50%;bottom:0;padding:0;border:0}
+.date-picker-button{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:100%;border:0;background:transparent;color:var(--ink);font-size:14px;font-weight:550;white-space:nowrap}
+.date-picker-button:hover{color:var(--green)}
+.date-picker-button svg{width:17px;height:17px;color:var(--green)}
+.period-field{grid-column:1/-1}
+.period-picker{display:grid;grid-template-columns:repeat(13,minmax(0,1fr));gap:7px}
+.period-option{height:48px;border:1px solid var(--line);border-radius:7px;background:#f8faf8;color:#65756b;display:flex;align-items:baseline;justify-content:center;gap:2px;transition:background .15s,border-color .15s,color .15s,transform .15s}
+.period-option:hover{border-color:#8db6a2;color:var(--green)}
+.period-option:active{transform:scale(.97)}
+.period-option strong{font-size:15px;font-weight:650}
+.period-option span{font-size:9px}
+.period-option.selected{background:var(--green);border-color:var(--green);color:white;box-shadow:0 3px 9px #176d5926}
+@media(max-width:1000px){.primary-filters{gap:18px 16px;grid-template-columns:minmax(0,1.25fr) minmax(190px,.75fr)}.period-picker{gap:5px}.date-control .icon-button{width:34px;padding:6px}.date-control .today-button{padding:0 7px}}
+@media(max-width:720px){.primary-filters{grid-template-columns:1fr;gap:17px}.date-field,.primary-filters>.field:nth-child(2),.period-field{grid-column:auto}.date-control{height:48px}.date-control .icon-button{width:40px;height:44px;padding:8px}.date-control .today-button{height:34px;padding:0 11px;margin-left:3px}.date-picker-button{font-size:13px;gap:6px}.period-label{font-size:11px;margin-bottom:8px}.period-label>span:last-child{font-size:9px}.period-picker{grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}.period-option{height:46px}}
+@media(max-width:360px){.period-picker{grid-template-columns:repeat(5,minmax(0,1fr))}.date-picker-button span{font-size:12px}}
+@media(prefers-reduced-motion:reduce){.period-option{transition:none}}

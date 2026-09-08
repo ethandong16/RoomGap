@@ -17,6 +17,17 @@ test('combined building, name and capacity filters keep only valid matches',()=>
   assert.deepEqual(result.map(r=>r.room.id),['04/11/111(d)']);
   assert.equal(selectRooms(rooms,day,{search:'a classroom that does not exist'}).length,0);
 });
+test('non-contiguous periods must all be free',()=>{
+  const roster=['all-free','middle-busy','last-busy'].map(name=>({id:name,name,resourceKind:'classroom',campus:'a',campusCode:'01',building:'1',buildingCode:'1'}));
+  const snapshot={rooms:[
+    {room:0,freeMask:8191,occupiedMask:0,unknownMask:0},
+    {room:1,freeMask:8189,occupiedMask:2,unknownMask:0},
+    {room:2,freeMask:8187,occupiedMask:4,unknownMask:0}
+  ]};
+  assert.deepEqual(selectRooms(roster,snapshot,{periods:[1,3]}).map(r=>r.room.id),['all-free','middle-busy']);
+  assert.deepEqual(selectRooms(roster,snapshot,{periods:[]}),[]);
+  assert.throws(()=>selectRooms(roster,snapshot,{periods:[1,1]}));
+});
 test('partial occupancy, unknown periods and non-classroom resources are never recommended',()=>{
   const roster=Array.from({length:5},(_,i)=>({id:String(i),name:String(i),resourceKind:i===4?'virtual':'classroom',campus:'a',campusCode:'01',building:'1',buildingCode:'1'}));
   const snapshot={rooms:[

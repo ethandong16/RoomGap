@@ -6,13 +6,33 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;',
 const icon = name => `<svg aria-hidden="true"><use href="./icons.svg#${name}"/></svg>`;
 const prettyDate = date => new Intl.DateTimeFormat('zh-CN', {timeZone:'UTC', month:'long', day:'numeric', weekday:'long'}).format(new Date(`${date}T00:00:00Z`));
 const intervalText = ([a, b]) => a === b ? `第 ${a} 节` : `第 ${a}–${b} 节`;
-const controls = {date:$('date'),campus:$('campus'),building:$('building'),start:$('start-period'),end:$('end-period'),search:$('search'),capacity:$('capacity')};
+const controls = {date:$('date'),campus:$('campus'),building:$('building'),search:$('search'),capacity:$('capacity')};
+let selectedPeriods = new Set();
 let catalog, currentDay, matches = [], visibleCount = 24, loading = true, hadError = false;
 let detailTrigger;
 
 function announce(text) { $('announcement').textContent = text; }
+function selectedPeriodList() { return [...selectedPeriods].sort((a,b)=>a-b); }
+function selectedPeriodText() {
+  const periods=selectedPeriodList(),groups=[];
+  if(!periods.length)return '未选节次';
+  let start=periods[0],end=start;
+  for(const period of periods.slice(1)) {
+    if(period===end+1){end=period;continue;}
+    groups.push(start===end?String(start):`${start}–${end}`);start=end=period;
+  }
+  groups.push(start===end?String(start):`${start}–${end}`);
+  return `第 ${groups.join('、')} 节`;
+}
 function filters() {
-  return {campus:controls.campus.value, building:controls.building.value, search:controls.search.value, minCapacity:Number(controls.capacity.value), start:Number(controls.start.value), end:Number(controls.end.value)};
+  return {campus:controls.campus.value, building:controls.building.value, search:controls.search.value, minCapacity:Number(controls.capacity.value), periods:selectedPeriodList()};
+}
+function renderPeriodPicker() {
+  $('period-picker').innerHTML=Array.from({length:13},(_,index)=>{
+    const period=index+1,selected=selectedPeriods.has(period);
+    return `<button type="button" class="period-option${selected?' selected':''}" data-period="${period}" aria-pressed="${selected}"><strong>${period}</strong><span>节</span></button>`;
+  }).join('');
+  $('period-selection-count').textContent=selectedPeriods.size?`已选 ${selectedPeriods.size} 节`:'未选节次';
 }
 function showState(kind, title, description, action) {
   $('state-panel').hidden = false;
@@ -28,7 +48,8 @@ function syncDateLabels() {
   $('next-day').disabled = !valid || date >= catalog.term.endDate;
   $('today').disabled = !dateInTerm(beijingDate(), catalog.term) || date === beijingDate();
   $('week-label').textContent = valid ? `第 ${teachingWeek(date,catalog.term)} 周` : '';
-  if (valid) $('selection-summary').textContent = `${prettyDate(date)} · 第 ${controls.start.value}–${controls.end.value} 节 · ${controls.campus.selectedOptions[0]?.textContent || '全部校区'}`;
+  $('date-display').textContent = valid ? prettyDate(date) : '选择日期';
+  if (valid) $('selection-summary').textContent = `${prettyDate(date)} · ${selectedPeriodText()} · ${controls.campus.selectedOptions[0]?.textContent || '全部校区'}`;
 }
 function updateBuildings() {
   const old = controls.building.value;
@@ -38,15 +59,15 @@ function updateBuildings() {
   if (buildings.has(old)) controls.building.value = old;
 }
 function saveCampus() { try { localStorage.setItem('roomgap-campus',controls.campus.value); } catch {} }
-function periodStrip(state, start, end) {
+function periodStrip(state) {
   return Array.from({length:13}, (_,i) => {
     const bit=1<<i, status = state.unknownMask & bit ? 'unknown' : state.occupiedMask & bit ? 'busy' : 'free';
-    return `<span class="period-cell ${status}${i+1>=start && i+1<=end ? ' selected' : ''}">${i+1}</span>`;
+    return `<span class="period-cell ${status}${selectedPeriods.has(i+1) ? ' selected' : ''}">${i+1}</span>`;
   }).join('');
 }
 function roomCard(entry, index) {
-  const {room,state,interval,continuousLength}=entry;
-  return `<article class="room-card"><div class="room-card-head"><span class="campus-tag">${esc(room.campus)}</span><span class="available-tag">${icon('check')}所选时段空闲</span></div><h3>${esc(room.name)}</h3><p class="location-line">${icon('pin')}${esc(room.building || room.buildingCode)}</p><div class="room-meta"><span>${icon('people')}${room.capacity == null ? '容量未注明' : `${esc(room.capacity)} 人`}</span><span class="type-label">${esc(room.type || '类型未注明')}</span></div><div class="period-strip" aria-hidden="true">${periodStrip(state,Number(controls.start.value),Number(controls.end.value))}</div><p class="strip-caption">${icon('clock')}${intervalText(interval)}连续空闲</p><div class="card-footer"><span>可连空 ${continuousLength} 节</span><button type="button" data-room="${index}" aria-label="查看${esc(room.campus)}${esc(room.building || room.buildingCode)}${esc(room.name)}全天安排">查看全天${icon('arrow-right')}</button></div></article>`;
+  const {room,state,continuousLength}=entry;
+  return `<article class="room-card"><div class="room-card-head"><span class="campus-tag">${esc(room.campus)}</span><span class="available-tag">${icon('check')}所选节次空闲</span></div><h3>${esc(room.name)}</h3><p class="location-line">${icon('pin')}${esc(room.building || room.buildingCode)}</p><div class="room-meta"><span>${icon('people')}${room.capacity == null ? '容量未注明' : `${esc(room.capacity)} 人`}</span><span class="type-label">${esc(room.type || '类型未注明')}</span></div><div class="period-strip" aria-hidden="true">${periodStrip(state)}</div><p class="strip-caption">${icon('clock')}${selectedPeriodText()} 均空闲</p><div class="card-footer"><span>最长连空 ${continuousLength} 节</span><button type="button" data-room="${index}" aria-label="查看${esc(room.campus)}${esc(room.building || room.buildingCode)}${esc(room.name)}全天安排">查看全天${icon('arrow-right')}</button></div></article>`;
 }
 function paintCards(append = false) {
   const start = append ? $('room-grid').children.length : 0;
@@ -59,6 +80,15 @@ function renderResults() {
   if (!catalog) return;
   syncDateLabels();
   if (loading || hadError || !currentDay) return;
+  if (!selectedPeriods.size) {
+    matches=[];visibleCount=24;
+    $('results-title').firstChild.textContent='先选择要查询的节次';
+    $('result-count').textContent='';
+    $('results-section').setAttribute('aria-busy','false');
+    showState('empty','请选择节次','可以选择一个或多个节次，不必连续。');
+    announce(`${prettyDate(controls.date.value)}，尚未选择节次`);
+    return;
+  }
   matches = selectRooms(catalog.rooms, currentDay, filters());
   visibleCount = 24;
   $('results-title').firstChild.textContent = '这些教室，等你来坐';
@@ -70,7 +100,7 @@ function renderResults() {
     $('state-panel').hidden = true;
     paintCards();
   }
-  announce(`${prettyDate(controls.date.value)}，第 ${controls.start.value} 至 ${controls.end.value} 节，找到 ${matches.length} 间空闲教室`);
+  announce(`${prettyDate(controls.date.value)}，${selectedPeriodText()}，找到 ${matches.length} 间空闲教室`);
 }
 async function loadSelectedDay() {
   syncDateLabels();
@@ -109,18 +139,27 @@ function clearAdditional() {
   controls.building.value='';controls.search.value='';controls.capacity.value='0';
   renderResults();
 }
+function resetFilters() {
+  if(!catalog)return;
+  controls.campus.value='';
+  updateBuildings();
+  controls.building.value='';controls.search.value='';controls.capacity.value='0';
+  selectedPeriods.clear();
+  renderPeriodPicker();saveCampus();
+  const defaultDate=initialDate(catalog.term).date;
+  if(controls.date.value!==defaultDate){controls.date.value=defaultDate;loadSelectedDay();}else renderResults();
+}
 function openRoom(index, trigger) {
   const entry=matches[index];if(!entry)return;
   const {room,state}=entry;
   detailTrigger=trigger;
   $('dialog-title').textContent=room.name;
-  const start=Number(controls.start.value),end=Number(controls.end.value);
   const periods=Array.from({length:13},(_,i)=>{
     const status=state.unknownMask&(1<<i)?'unknown':state.occupiedMask&(1<<i)?'busy':'free';
-    return `<div class="detail-period ${status}${i+1>=start&&i+1<=end?' chosen':''}"><strong>第 ${i+1} 节</strong><span>${{free:'空闲',busy:'占用',unknown:'未知'}[status]}</span></div>`;
+    return `<div class="detail-period ${status}${selectedPeriods.has(i+1)?' chosen':''}"><strong>第 ${i+1} 节</strong><span>${{free:'空闲',busy:'占用',unknown:'未知'}[status]}</span></div>`;
   }).join('');
   $('dialog-body').className='dialog-body';
-  $('dialog-body').innerHTML=`<p class="dialog-location">${esc(room.campus)} / ${esc(room.building || room.buildingCode)}</p><div class="room-meta"><span>${icon('people')}${room.capacity==null?'容量未注明':`${esc(room.capacity)} 人`}</span><span class="type-label">${esc(room.type || '类型未注明')}</span></div><div class="detail-date"><strong>${prettyDate(controls.date.value)}</strong><span>第 ${teachingWeek(controls.date.value,catalog.term)} 周</span></div><div class="legend"><span><i></i>空闲</span><span><i class="busy"></i>占用</span><span><i class="unknown"></i>未知</span></div><div class="detail-periods">${periods}</div><p class="detail-caption">绿色边框标出你选择的第 ${start}–${end} 节</p><h3 class="interval-heading">当天连续空闲时段</h3><div class="interval-tags">${state.freeIntervals.map(interval=>`<span>${intervalText(interval)}</span>`).join('')}</div><p class="detail-note">排课空闲不保证实际开放，临时调整以学校安排为准。容量是教室座位总数，不代表当前剩余座位。</p>`;
+  $('dialog-body').innerHTML=`<p class="dialog-location">${esc(room.campus)} / ${esc(room.building || room.buildingCode)}</p><div class="room-meta"><span>${icon('people')}${room.capacity==null?'容量未注明':`${esc(room.capacity)} 人`}</span><span class="type-label">${esc(room.type || '类型未注明')}</span></div><div class="detail-date"><strong>${prettyDate(controls.date.value)}</strong><span>第 ${teachingWeek(controls.date.value,catalog.term)} 周</span></div><div class="legend"><span><i></i>空闲</span><span><i class="busy"></i>占用</span><span><i class="unknown"></i>未知</span></div><div class="detail-periods">${periods}</div><p class="detail-caption">绿色边框标出你选择的${selectedPeriodText()}</p><h3 class="interval-heading">当天连续空闲时段</h3><div class="interval-tags">${state.freeIntervals.map(interval=>`<span>${intervalText(interval)}</span>`).join('')}</div><p class="detail-note">排课空闲不保证实际开放，临时调整以学校安排为准。容量是教室座位总数，不代表当前剩余座位。</p>`;
   $('room-dialog').showModal();
   document.body.style.overflow='hidden';
   $('close-dialog').focus();
@@ -139,8 +178,8 @@ async function initialize() {
     controls.campus.replaceChildren(new Option('全部校区',''),...campuses.map(([value,label])=>new Option(label,value)));
     let saved='';try{saved=localStorage.getItem('roomgap-campus')||'';}catch{}
     if(campuses.some(([code])=>code===saved))controls.campus.value=saved;
-    for(const control of [controls.start,controls.end])control.replaceChildren(...Array.from({length:13},(_,i)=>new Option(`第${i+1}节`,String(i+1))));
-    controls.start.value=String(previous?.start || 1);controls.end.value=String(previous?.end || 2);
+    selectedPeriods=new Set(previous?.periods??[]);
+    renderPeriodPicker();
     controls.date.min=term.startDate;controls.date.max=term.endDate;
     const initial=initialDate(term);
     controls.date.value=previous&&dateInTerm(previous.date,term)?previous.date:initial.date;
@@ -168,14 +207,19 @@ async function initialize() {
 $('query-form').addEventListener('submit',event=>{event.preventDefault();renderResults();});
 controls.date.addEventListener('change',loadSelectedDay);
 controls.campus.addEventListener('change',()=>{updateBuildings();saveCampus();renderResults();});
-controls.start.addEventListener('change',()=>{if(Number(controls.start.value)>Number(controls.end.value))controls.end.value=controls.start.value;renderResults();});
-controls.end.addEventListener('change',()=>{if(Number(controls.end.value)<Number(controls.start.value))controls.start.value=controls.end.value;renderResults();});
+$('date-picker').addEventListener('click',()=>{try{controls.date.showPicker();}catch{controls.date.focus();controls.date.click();}});
+$('period-picker').addEventListener('click',event=>{
+  const button=event.target.closest('button[data-period]');if(!button)return;
+  const period=Number(button.dataset.period);
+  if(selectedPeriods.has(period))selectedPeriods.delete(period);else selectedPeriods.add(period);
+  renderPeriodPicker();renderResults();
+});
 for(const control of [controls.building,controls.capacity])control.addEventListener('change',renderResults);
 controls.search.addEventListener('input',renderResults);
 $('previous-day').onclick=()=>{controls.date.value=moveDate(controls.date.value,-1);loadSelectedDay();};
 $('next-day').onclick=()=>{controls.date.value=moveDate(controls.date.value,1);loadSelectedDay();};
 $('today').onclick=()=>{controls.date.value=beijingDate();loadSelectedDay();};
-$('reset-filters').onclick=clearAdditional;
+$('reset-filters').onclick=resetFilters;
 $('load-more').onclick=()=>{const oldCount=$('room-grid').children.length;visibleCount+=24;paintCards(true);$('room-grid').children[oldCount]?.querySelector('button')?.focus();announce(`已显示 ${Math.min(visibleCount,matches.length)} 间教室，共 ${matches.length} 间`);};
 $('room-grid').addEventListener('click',event=>{const trigger=event.target.closest('button[data-room]');if(trigger)openRoom(Number(trigger.dataset.room),trigger);});
 $('close-dialog').onclick=()=>$('room-dialog').close();
