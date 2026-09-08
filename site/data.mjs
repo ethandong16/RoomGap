@@ -23,6 +23,9 @@ export async function loadCatalog() {
   if (hash !== schema.catalogDigest) throw new Error('教室目录版本不一致，请重新加载');
   const rooms = JSON.parse(roomText);
   if (!Array.isArray(rooms) || rooms.length !== coverage.roomCount || new Set(rooms.map(r => r.id)).size !== rooms.length) throw new Error('教室目录不完整，请重新加载');
+  for (const room of rooms) {
+    if (room.campus === '泰达') room.campus = '泰达中院';
+  }
   const candidates = rooms.filter(r => candidateKinds.has(r.resourceKind));
   const loader = createDayLoader(date => get(`${base}days/${date}.json`), (day, date) => validateDay(day, date, rooms, hash));
   return {rooms, candidates, term, schema, coverage, loader};

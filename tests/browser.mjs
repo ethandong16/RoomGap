@@ -62,8 +62,19 @@ try{
    await page.reload();await settled(page);assert.equal(await page.locator('#campus').inputValue(),'04');await setPeriods(page,[1,2]);await ready(page);
    await page.locator('#campus').selectOption('');await ready(page);
    assert.equal(await page.locator('.room-card').count(),24);
-   await page.locator('#load-more').click();assert.equal(await page.locator('.room-card').count(),48);
-   assert.equal(await page.locator('.room-card').nth(24).locator('button').evaluate(el=>el===document.activeElement),true);
+   await page.locator('.room-card').first().locator('button').focus();
+   await page.locator('#load-more').scrollIntoViewIfNeeded();
+   await page.waitForFunction(()=>document.querySelectorAll('.room-card').length===48);
+   assert.equal(await page.locator('.room-card').first().locator('button').evaluate(el=>el===document.activeElement),true);
+   const total=parseInt(await page.locator('#result-count').textContent());
+   while(await page.locator('.room-card').count()<total){
+     const before=await page.locator('.room-card').count();
+     await page.locator('#load-more').scrollIntoViewIfNeeded();
+     await page.waitForFunction(before=>document.querySelectorAll('.room-card').length>before,before);
+   }
+   assert.equal(await page.locator('.room-card').count(),total);
+   assert.equal(await page.locator('#load-more').textContent(),`已显示全部 ${total} 间教室`);
+   assert.equal(await page.locator('[data-room]').evaluateAll(buttons=>new Set(buttons.map(b=>b.dataset.room)).size),total);
  });
  await check('reset restores every query filter',async()=>{
    await date(page,'2026-09-10');await page.locator('#campus').selectOption('04');await setPeriods(page,[3,6]);
@@ -124,6 +135,11 @@ try{
    assert.equal(await p.locator('.period-option').count(),13);
    assert.equal(await p.locator('.period-option').first().evaluate(element=>element.getBoundingClientRect().height>=44),true);
    await p.screenshot({path:'artifacts/mobile.png'});
+   await p.locator('#load-more').scrollIntoViewIfNeeded();
+   await p.waitForFunction(()=>document.querySelectorAll('.room-card').length===48);
+   await p.locator('#capacity').scrollIntoViewIfNeeded();
+   await p.locator('#capacity').selectOption('30');await ready(p);
+   assert.equal(await p.locator('.room-card').count(),24);
    await p.locator('.room-card button').first().click();assert.equal(await p.locator('#room-dialog').isVisible(),true);
    assert.equal(await p.locator('.detail-period').count(),13);assert.equal(await p.locator('.detail-period.chosen').count(),3);await p.screenshot({path:'artifacts/mobile-detail.png'});
    await p.locator('#close-dialog').click();await p.setViewportSize({width:320,height:900});await p.evaluate(()=>scrollTo(0,0));

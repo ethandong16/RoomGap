@@ -10,6 +10,9 @@ const controls = {date:$('date'),campus:$('campus'),building:$('building'),searc
 let selectedPeriods = new Set();
 let catalog, currentDay, matches = [], visibleCount = 24, loading = true, hadError = false;
 let detailTrigger;
+const moreObserver = new IntersectionObserver(entries=>{
+  if(entries.some(entry=>entry.isIntersecting))appendMoreRooms();
+}, {rootMargin:'0px 0px 300px 0px'});
 
 function announce(text) { $('announcement').textContent = text; }
 function selectedPeriodList() { return [...selectedPeriods].sort((a,b)=>a-b); }
@@ -39,6 +42,7 @@ function showState(kind, title, description, action) {
   $('state-panel').innerHTML = `${kind === 'loading' ? '<span class="spinner" aria-hidden="true"></span>' : icon(kind === 'error' ? 'info' : 'empty')}<h3>${esc(title)}</h3><p>${esc(description)}</p>${action ? `<button type="button" id="state-action">${esc(action)}</button>` : ''}`;
   if (action) $('state-action').onclick = kind === 'error' ? () => catalog ? loadSelectedDay() : initialize() : clearAdditional;
   $('room-grid').replaceChildren();
+  moreObserver.disconnect();
   $('load-more').hidden = true;
 }
 function syncDateLabels() {
@@ -73,8 +77,17 @@ function paintCards(append = false) {
   const start = append ? $('room-grid').children.length : 0;
   const html = matches.slice(start, visibleCount).map((entry,i) => roomCard(entry,start+i)).join('');
   if (append) $('room-grid').insertAdjacentHTML('beforeend',html); else $('room-grid').innerHTML = html;
-  $('load-more').hidden = visibleCount >= matches.length;
-  $('load-more').innerHTML = `查看更多教室 · 还有 ${Math.max(0,matches.length-visibleCount)} 间${icon('chevron-right')}`;
+  moreObserver.disconnect();
+  $('load-more').hidden = false;
+  const remaining=Math.max(0,matches.length-visibleCount);
+  $('load-more').textContent = remaining ? `继续下滑加载 · 还有 ${remaining} 间` : `已显示全部 ${matches.length} 间教室`;
+  if(remaining)moreObserver.observe($('load-more'));
+}
+function appendMoreRooms() {
+  if(loading||hadError||!currentDay||!selectedPeriods.size||visibleCount>=matches.length||$('load-more').hidden)return;
+  visibleCount+=24;
+  paintCards(true);
+  announce(`已显示 ${Math.min(visibleCount,matches.length)} 间教室，共 ${matches.length} 间`);
 }
 function renderResults() {
   if (!catalog) return;
@@ -220,7 +233,6 @@ $('previous-day').onclick=()=>{controls.date.value=moveDate(controls.date.value,
 $('next-day').onclick=()=>{controls.date.value=moveDate(controls.date.value,1);loadSelectedDay();};
 $('today').onclick=()=>{controls.date.value=beijingDate();loadSelectedDay();};
 $('reset-filters').onclick=resetFilters;
-$('load-more').onclick=()=>{const oldCount=$('room-grid').children.length;visibleCount+=24;paintCards(true);$('room-grid').children[oldCount]?.querySelector('button')?.focus();announce(`已显示 ${Math.min(visibleCount,matches.length)} 间教室，共 ${matches.length} 间`);};
 $('room-grid').addEventListener('click',event=>{const trigger=event.target.closest('button[data-room]');if(trigger)openRoom(Number(trigger.dataset.room),trigger);});
 $('close-dialog').onclick=()=>$('room-dialog').close();
 $('room-dialog').addEventListener('click',event=>{if(event.target===$('room-dialog')){const rect=$('room-dialog').getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)$('room-dialog').close();}});
