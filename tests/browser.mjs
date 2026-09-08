@@ -45,6 +45,12 @@ try{
      return document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2)?.id;
    });
    assert.equal(dateHitTarget,'date');
+   await page.evaluate(()=>{
+     window.__roomgapPickerCalls=0;
+     HTMLInputElement.prototype.showPicker=function(){window.__roomgapPickerCalls++;};
+   });
+   await page.locator('.date-picker-shell').click();
+   assert.equal(await page.evaluate(()=>window.__roomgapPickerCalls),1);
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
    assert.equal(await page.locator('#back-to-top').getAttribute('data-visible'),'false');
    await page.locator('.period-preset').first().click();await ready(page);

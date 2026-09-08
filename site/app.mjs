@@ -251,6 +251,16 @@ themeSwitcher.addEventListener('keydown',event=>{
 });
 const systemThemeChanged=()=>{if(themePreference==='system')applyTheme('system',{persist:false});};
 if(themeMedia.addEventListener)themeMedia.addEventListener('change',systemThemeChanged);else themeMedia.addListener(systemThemeChanged);
+function openNativeDatePicker(event) {
+  if(event.type==='keydown') {
+    if(!['Enter',' '].includes(event.key))return;
+    event.preventDefault();
+  }
+  if(typeof controls.date.showPicker!=='function')return;
+  try{controls.date.showPicker();}catch{}
+}
+controls.date.addEventListener('click',openNativeDatePicker);
+controls.date.addEventListener('keydown',openNativeDatePicker);
 controls.date.addEventListener('change',loadSelectedDay);
 controls.campus.addEventListener('change',()=>{updateBuildings();saveCampus();renderResults();});
 $('period-picker').addEventListener('click',event=>{
