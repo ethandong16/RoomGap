@@ -4,8 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f4f5f2">
+  <meta name="color-scheme" content="light dark">
   <meta name="description" content="RoomGap 天津科技大学空闲教室查询。按日期、校区和节次，寻找适合专注的教室。">
   <title>RoomGap · 空闲教室</title>
+  <script>
+    (()=>{
+      let preference='system';
+      try{const saved=localStorage.getItem('roomgap-theme');if(['system','light','dark'].includes(saved))preference=saved;}catch{}
+      const theme=preference==='system'&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':preference==='dark'?'dark':'light';
+      document.documentElement.dataset.theme=theme;
+      document.documentElement.dataset.themePreference=preference;
+      document.querySelector('meta[name="theme-color"]').content=theme==='dark'?'#111613':'#f4f5f2';
+    })();
+  </script>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
   <link rel="stylesheet" href="./styles.css">
   <script type="module" src="./app.mjs"></script>
@@ -19,7 +30,14 @@
         <span class="brand-mark" aria-hidden="true"><svg><use href="./icons.svg#door"/></svg></span>
         <span class="brand-lockup"><strong>RoomGap<span class="brand-dot">.</span></strong><span class="brand-description">空闲教室</span></span>
       </a>
-      <a class="about-link" href="#data-note"><svg aria-hidden="true"><use href="./icons.svg#info"/></svg><span>数据说明</span></a>
+      <div class="header-actions">
+        <div id="theme-switcher" class="theme-switcher" role="radiogroup" aria-label="外观模式">
+          <button type="button" class="theme-option" data-theme="system" role="radio" aria-checked="true" aria-label="跟随系统" title="跟随系统"><svg aria-hidden="true"><use href="./icons.svg#monitor"/></svg></button>
+          <button type="button" class="theme-option" data-theme="light" role="radio" aria-checked="false" aria-label="浅色模式" title="浅色模式"><svg aria-hidden="true"><use href="./icons.svg#sun"/></svg></button>
+          <button type="button" class="theme-option" data-theme="dark" role="radio" aria-checked="false" aria-label="深色模式" title="深色模式"><svg aria-hidden="true"><use href="./icons.svg#moon"/></svg></button>
+        </div>
+        <a class="about-link" href="#data-note"><svg aria-hidden="true"><use href="./icons.svg#info"/></svg><span>数据说明</span></a>
+      </div>
     </div>
   </header>
 

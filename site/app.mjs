@@ -7,6 +7,8 @@ const icon = name => `<svg aria-hidden="true"><use href="./icons.svg#${name}"/><
 const prettyDate = date => new Intl.DateTimeFormat('zh-CN', {timeZone:'UTC', month:'long', day:'numeric', weekday:'long'}).format(new Date(`${date}T00:00:00Z`));
 const intervalText = ([a, b]) => a === b ? `第 ${a} 节` : `第 ${a}–${b} 节`;
 const controls = {date:$('date'),campus:$('campus'),building:$('building'),search:$('search'),capacity:$('capacity')};
+const themeMedia=matchMedia('(prefers-color-scheme: dark)');
+let themePreference=document.documentElement.dataset.themePreference||'system';
 let selectedPeriods = new Set();
 let catalog, currentDay, matches = [], visibleCount = 24, loading = true, hadError = false;
 let detailTrigger;
@@ -15,6 +17,19 @@ const moreObserver = new IntersectionObserver(entries=>{
 }, {rootMargin:'0px 0px 300px 0px'});
 
 function announce(text) { $('announcement').textContent = text; }
+function applyTheme(preference,{persist=true}={}) {
+  themePreference=['system','light','dark'].includes(preference)?preference:'system';
+  const theme=themePreference==='system'?(themeMedia.matches?'dark':'light'):themePreference;
+  document.documentElement.dataset.theme=theme;
+  document.documentElement.dataset.themePreference=themePreference;
+  document.querySelector('meta[name="theme-color"]').content=theme==='dark'?'#111613':'#f4f5f2';
+  document.querySelectorAll('.theme-option').forEach(button=>{
+    const selected=button.dataset.theme===themePreference;
+    button.setAttribute('aria-checked',String(selected));
+    button.tabIndex=selected?0:-1;
+  });
+  if(persist)try{localStorage.setItem('roomgap-theme',themePreference);}catch{}
+}
 function selectedPeriodList() { return [...selectedPeriods].sort((a,b)=>a-b); }
 function selectedPeriodText() {
   const periods=selectedPeriodList(),groups=[];
@@ -224,6 +239,18 @@ async function initialize() {
 }
 
 $('query-form').addEventListener('submit',event=>{event.preventDefault();renderResults();});
+const themeSwitcher=$('theme-switcher');
+themeSwitcher.addEventListener('click',event=>{const button=event.target.closest('button[data-theme]');if(button)applyTheme(button.dataset.theme);});
+themeSwitcher.addEventListener('keydown',event=>{
+  if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
+  event.preventDefault();
+  const options=[...themeSwitcher.querySelectorAll('.theme-option')];
+  const current=options.indexOf(document.activeElement);
+  const next=event.key==='Home'?0:event.key==='End'?options.length-1:(current+(event.key==='ArrowRight'?1:-1)+options.length)%options.length;
+  applyTheme(options[next].dataset.theme);options[next].focus();
+});
+const systemThemeChanged=()=>{if(themePreference==='system')applyTheme('system',{persist:false});};
+if(themeMedia.addEventListener)themeMedia.addEventListener('change',systemThemeChanged);else themeMedia.addListener(systemThemeChanged);
 controls.date.addEventListener('change',loadSelectedDay);
 controls.campus.addEventListener('change',()=>{updateBuildings();saveCampus();renderResults();});
 $('period-picker').addEventListener('click',event=>{
@@ -263,4 +290,5 @@ window.addEventListener('scroll',()=>{
 },{passive:true});
 backToTop.addEventListener('click',()=>window.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'}));
 updateBackToTop();
+applyTheme(themePreference,{persist:false});
 initialize();

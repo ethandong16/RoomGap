@@ -54,7 +54,25 @@ try{
    await page.waitForFunction(()=>scrollY===0);
    await page.waitForFunction(()=>document.querySelector('#back-to-top').dataset.visible==='false');
    await page.locator('.period-clear').click();
-   await page.screenshot({path:'artifacts/desktop.png'});
+ await page.screenshot({path:'artifacts/desktop.png'});
+ });
+ await check('theme follows the device and remembers manual choices',async()=>{
+   const c=await context({colorScheme:'dark'}),p=await c.newPage();await p.goto(base);await settled(p);
+   assert.equal(await p.locator('html').getAttribute('data-theme'),'dark');
+   assert.equal(await p.locator('html').getAttribute('data-theme-preference'),'system');
+   assert.equal(await p.locator('.theme-option[data-theme="system"]').getAttribute('aria-checked'),'true');
+   await p.screenshot({path:'artifacts/desktop-dark.png',fullPage:true});
+   await p.locator('.theme-option[data-theme="light"]').click();
+   assert.equal(await p.locator('html').getAttribute('data-theme'),'light');
+   assert.equal(await p.evaluate(()=>localStorage.getItem('roomgap-theme')),'light');
+   await p.reload();await settled(p);assert.equal(await p.locator('html').getAttribute('data-theme'),'light');
+   await p.locator('.theme-option[data-theme="system"]').click();
+   assert.equal(await p.locator('html').getAttribute('data-theme'),'dark');
+   await p.emulateMedia({colorScheme:'light'});
+   await p.waitForFunction(()=>document.documentElement.dataset.theme==='light');
+   await p.locator('.theme-option[data-theme="system"]').focus();await p.keyboard.press('ArrowRight');
+   assert.equal(await p.locator('html').getAttribute('data-theme-preference'),'light');
+   await c.close();
  });
  await check('known 19-room query and combined filters',async()=>{
    await setPeriods(page,[1,2,3,4]);await ready(page);await date(page,'2026-09-08');await page.locator('#campus').selectOption('04');await count(page,19);
@@ -145,8 +163,9 @@ try{
    assert.equal(await page.locator('#date').inputValue(),'2026-09-14');assert.match(await page.locator('#selection-summary').textContent(),/9月14日/);
  });
  await check('mobile layout, touch details and narrow viewport',async()=>{
-   const c=await context({viewport:{width:390,height:1000},isMobile:true,hasTouch:true,deviceScaleFactor:1}),p=await c.newPage();
+   const c=await context({viewport:{width:390,height:1000},isMobile:true,hasTouch:true,deviceScaleFactor:1,colorScheme:'dark'}),p=await c.newPage();
    await p.goto(base);await settled(p);await setPeriods(p,[1,3,6]);await ready(p);
+   assert.equal(await p.locator('html').getAttribute('data-theme'),'dark');
    assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
    assert.equal(await p.locator('.date-picker-shell').evaluate(shell=>{
      const rect=shell.getBoundingClientRect();
