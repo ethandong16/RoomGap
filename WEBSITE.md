@@ -10,9 +10,9 @@
 .\run-web.ps1
 ```
 
-打开 http://127.0.0.1:4173 。更换端口可使用 `.\run-web.ps1 -Port 4174`。
+服务监听 `0.0.0.0:4173`。本机打开 http://127.0.0.1:4173，局域网设备使用本机局域网 IP；更换端口可使用 `.\run-web.ps1 -Port 4174`。
 
-也可以分别执行 `node scripts/build-site.mjs` 和 `node scripts/serve-site.mjs`。服务仅监听本机，并且只能读取 dist 中的网页和数据，不提供项目或浏览器配置目录。
+也可以分别执行 `node scripts/build-site.mjs` 和 `node scripts/serve-site.mjs`。服务可由本机和局域网设备访问，但只能读取 dist 中的网页和数据，不提供项目或浏览器配置目录。
 
 ## 部署
 

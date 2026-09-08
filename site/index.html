@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f5f8f6">
+  <meta name="theme-color" content="#f4f5f2">
   <meta name="description" content="RoomGap 天津科技大学空闲教室查询。按日期、校区和节次，寻找适合专注的教室。">
   <title>RoomGap · 空闲教室</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
@@ -12,32 +12,94 @@
 </head>
 <body>
   <a class="skip-link" href="#query-form">跳到教室查询</a>
+
   <header class="site-header">
     <div class="header-inner">
-      <a class="brand" href="./" aria-label="RoomGap 首页"><span class="brand-mark" aria-hidden="true"><svg><use href="./icons.svg#door"/></svg></span><strong>RoomGap<span class="brand-dot">.</span></strong><span class="brand-description">空闲教室</span></a>
-      <a class="about-link" href="#data-note"><svg aria-hidden="true"><use href="./icons.svg#info"/></svg><span>关于数据</span></a>
+      <a class="brand" href="./" aria-label="RoomGap 首页">
+        <span class="brand-mark" aria-hidden="true"><svg><use href="./icons.svg#door"/></svg></span>
+        <span class="brand-lockup"><strong>RoomGap<span class="brand-dot">.</span></strong><span class="brand-description">空闲教室</span></span>
+      </a>
+      <a class="about-link" href="#data-note"><svg aria-hidden="true"><use href="./icons.svg#info"/></svg><span>数据说明</span></a>
     </div>
   </header>
+
   <main class="page">
     <section class="hero" aria-labelledby="hero-title">
-      <div class="hero-copy"><div class="eyebrow"><span></span>天津科技大学</div><h1 id="hero-title">空闲教室查询</h1></div>
-      <div class="semester-card"><div class="semester-label"><svg aria-hidden="true"><use href="./icons.svg#calendar"/></svg><span>2026 — 2027 · 秋季学期</span></div><div class="semester-stats"><div><strong id="candidate-count">—</strong><span>间候选教室</span></div><div><strong id="campus-count">—</strong><span>个校区</span></div><div><strong>20</strong><span>周安排</span></div></div><div class="semester-bottom"><span class="small-dot"></span><span id="term-range">正在读取学期数据</span><svg aria-hidden="true"><use href="./icons.svg#arrow-up-right"/></svg></div></div>
+      <div class="hero-copy">
+        <p class="eyebrow"><span aria-hidden="true"></span>天津科技大学</p>
+        <h1 id="hero-title">空闲教室查询</h1>
+      </div>
+      <div class="semester-status" aria-label="当前收录范围">
+        <div class="semester-heading">
+          <svg aria-hidden="true"><use href="./icons.svg#calendar"/></svg>
+          <div><span>当前学期</span><strong>2026 — 2027 · 秋季</strong></div>
+        </div>
+        <div class="semester-stats">
+          <div><strong id="candidate-count">—</strong><span>候选教室</span></div>
+          <div><strong id="campus-count">—</strong><span>校区</span></div>
+          <div><strong>20</strong><span>教学周</span></div>
+        </div>
+        <p class="semester-range"><span class="status-dot" aria-hidden="true"></span><span id="term-range">正在读取学期数据</span></p>
+      </div>
     </section>
 
-    <section class="query-panel" aria-label="查询条件">
+    <section class="query-panel" aria-labelledby="query-title">
+      <div class="section-heading query-heading">
+        <div><span class="section-index">01</span><h2 id="query-title">查询条件</h2></div>
+        <p>日期、校区和节次是必看的三项</p>
+      </div>
+
       <form id="query-form">
         <fieldset id="filters" disabled>
           <legend class="sr-only">选择日期、校区和节次</legend>
           <div class="primary-filters">
-            <div class="field date-field"><label for="date-picker">哪一天 <span id="week-label"></span></label><div class="date-control"><button type="button" id="previous-day" class="icon-button" aria-label="前一天"><svg aria-hidden="true"><use href="./icons.svg#chevron-left"/></svg></button><div class="date-picker-shell"><button type="button" id="date-picker" class="date-picker-button" aria-haspopup="dialog"><svg aria-hidden="true"><use href="./icons.svg#calendar"/></svg><span id="date-display">选择日期</span></button><input id="date" type="date" required tabindex="-1" aria-label="查询日期"></div><button type="button" id="next-day" class="icon-button" aria-label="后一天"><svg aria-hidden="true"><use href="./icons.svg#chevron-right"/></svg></button><button type="button" id="today" class="today-button">今天</button></div></div>
-            <div class="field"><label for="campus">在哪个校区</label><select id="campus"><option value="">全部校区</option></select></div>
-            <div class="field period-field"><div class="period-label"><span id="period-label">哪几节</span><span id="period-selection-count">未选节次</span></div><div id="period-picker" class="period-picker" role="group" aria-labelledby="period-label"></div></div>
+            <div class="field date-field">
+              <label for="date-picker">日期 <span id="week-label"></span></label>
+              <div class="date-control">
+                <button type="button" id="previous-day" class="icon-button" aria-label="前一天"><svg aria-hidden="true"><use href="./icons.svg#chevron-left"/></svg></button>
+                <div class="date-picker-shell">
+                  <button type="button" id="date-picker" class="date-picker-button" aria-haspopup="dialog"><svg aria-hidden="true"><use href="./icons.svg#calendar"/></svg><span id="date-display">选择日期</span></button>
+                  <input id="date" type="date" required tabindex="-1" aria-label="查询日期">
+                </div>
+                <button type="button" id="next-day" class="icon-button" aria-label="后一天"><svg aria-hidden="true"><use href="./icons.svg#chevron-right"/></svg></button>
+                <button type="button" id="today" class="today-button">今天</button>
+              </div>
+            </div>
+
+            <div class="field campus-field">
+              <label for="campus">校区</label>
+              <select id="campus"><option value="">全部校区</option></select>
+            </div>
+
+            <div class="field period-field">
+              <div class="period-heading">
+                <div class="period-label"><span id="period-label">节次</span><span id="period-selection-count">未选节次</span></div>
+                <div id="period-presets" class="period-presets" role="group" aria-label="常用节次组合">
+                  <span>快捷选择</span>
+                  <button class="period-preset" type="button" data-periods="1,2,3,4" aria-pressed="false">1–4</button>
+                  <button class="period-preset" type="button" data-periods="5,6,7,8" aria-pressed="false">5–8</button>
+                  <button class="period-preset" type="button" data-periods="9,10,11,12,13" aria-pressed="false">9–13</button>
+                  <button class="period-clear" type="button" data-periods="">清空</button>
+                </div>
+              </div>
+              <div id="period-picker" class="period-picker" role="group" aria-labelledby="period-label"></div>
+            </div>
           </div>
-          <div class="secondary-filters">
-            <div class="field compact"><label for="building" class="sr-only">教学楼</label><select id="building"><option value="">全部教学楼</option></select></div>
-            <div class="field search-field"><svg aria-hidden="true"><use href="./icons.svg#search"/></svg><label for="search" class="sr-only">搜索教室或教学楼</label><input type="search" id="search" placeholder="搜索教室 / 教学楼" autocomplete="off"></div>
-            <div class="field capacity-field"><label for="capacity" class="sr-only">最低容量</label><select id="capacity"><option value="0">不限容量</option><option value="30">至少 30 人</option><option value="60">至少 60 人</option><option value="100">至少 100 人</option><option value="150">至少 150 人</option></select></div>
-            <button class="reset-button" id="reset-filters" type="button"><svg aria-hidden="true"><use href="./icons.svg#reset"/></svg>重置筛选</button>
+
+          <div class="secondary-filters" aria-label="更多筛选">
+            <div class="field compact">
+              <label for="building">教学楼</label>
+              <select id="building"><option value="">全部教学楼</option></select>
+            </div>
+            <div class="field search-field">
+              <label for="search">教室搜索</label>
+              <div class="search-control"><svg aria-hidden="true"><use href="./icons.svg#search"/></svg><input type="search" id="search" placeholder="教室名或教学楼" autocomplete="off"></div>
+            </div>
+            <div class="field capacity-field">
+              <label for="capacity">最低容量</label>
+              <select id="capacity"><option value="0">不限容量</option><option value="30">至少 30 人</option><option value="60">至少 60 人</option><option value="100">至少 100 人</option><option value="150">至少 150 人</option></select>
+            </div>
+            <button class="reset-button" id="reset-filters" type="button"><svg aria-hidden="true"><use href="./icons.svg#reset"/></svg><span>重置全部</span></button>
           </div>
         </fieldset>
       </form>
@@ -45,17 +107,32 @@
     </section>
 
     <section class="results-section" aria-labelledby="results-title" aria-busy="true" id="results-section">
-      <div class="results-header"><div><div class="result-eyebrow">YOUR NEXT STUDY SPOT</div><h2 id="results-title">正在寻找空闲教室<span id="result-count"></span></h2><p id="selection-summary">读取已采集的教室安排…</p></div><span class="sort-label"><svg aria-hidden="true"><use href="./icons.svg#sort"/></svg>连续空闲更久的优先</span></div>
+      <div class="results-header">
+        <div>
+          <div class="result-kicker"><span class="section-index">02</span><span>查询结果</span></div>
+          <h2 id="results-title">正在寻找空闲教室<span id="result-count"></span></h2>
+          <p id="selection-summary">读取已采集的教室安排…</p>
+        </div>
+        <span class="sort-label"><svg aria-hidden="true"><use href="./icons.svg#sort"/></svg>连续空闲更久的优先</span>
+      </div>
       <p id="announcement" class="sr-only" role="status" aria-live="polite"></p>
       <div id="state-panel" class="state-panel"><span class="spinner" aria-hidden="true"></span><h3>正在加载教室安排</h3><p>稍等一下，你的专注空间马上就好。</p></div>
       <div id="room-grid" class="room-grid"></div>
       <p id="load-more" class="scroll-status" hidden></p>
     </section>
 
-    <aside id="data-note" class="data-note"><svg aria-hidden="true"><use href="./icons.svg#info"/></svg><div><h2>出发前，了解一下</h2><p>排课空闲不保证实际开放，临时调整以学校安排为准。当前按第 1–13 节查询，暂不提供钟点时间。</p><p class="data-meta" id="data-meta">正在读取数据更新时间</p><p class="data-scope">收录普通教室及类型未注明的教室，已排除虚拟、体育及专用资源。教室容量表示座位总数，不代表当前剩余座位。</p></div></aside>
+    <aside id="data-note" class="data-note">
+      <svg aria-hidden="true"><use href="./icons.svg#info"/></svg>
+      <div><h2>出发前，了解一下</h2><p>排课空闲不保证实际开放，临时调整以学校安排为准。当前按第 1–13 节查询，暂不提供钟点时间。</p><p class="data-meta" id="data-meta">正在读取数据更新时间</p><p class="data-scope">收录普通教室及类型未注明的教室，已排除虚拟、体育及专用资源。教室容量表示座位总数，不代表当前剩余座位。</p></div>
+    </aside>
   </main>
+
   <footer class="site-footer"><span>RoomGap<span class="brand-dot">.</span></span><span>非学校官方网站 · 仅供查询参考</span></footer>
-  <dialog id="room-dialog" aria-labelledby="dialog-title"><div class="dialog-head"><div><p class="dialog-eyebrow">教室全天安排</p><h2 id="dialog-title"></h2></div><button id="close-dialog" type="button" class="icon-button" aria-label="关闭教室详情"><svg aria-hidden="true"><use href="./icons.svg#close"/></svg></button></div><div id="dialog-body"></div></dialog>
+
+  <dialog id="room-dialog" aria-labelledby="dialog-title">
+    <div class="dialog-head"><div><p class="dialog-eyebrow">教室全天安排</p><h2 id="dialog-title"></h2></div><button id="close-dialog" type="button" class="icon-button" aria-label="关闭教室详情"><svg aria-hidden="true"><use href="./icons.svg#close"/></svg></button></div>
+    <div id="dialog-body"></div>
+  </dialog>
   <noscript><p class="noscript">请启用 JavaScript 后查询空闲教室。</p></noscript>
 </body>
 </html>

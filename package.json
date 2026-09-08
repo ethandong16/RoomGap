@@ -7,7 +7,7 @@
     "collect": "node collect-api.mjs",
     "build:data": "node build-dataset.mjs",
     "verify:data": "node verify-dataset.mjs",
-    "test": "node --test semester-model.test.mjs tests/query.test.mjs",
+    "test": "node --test semester-model.test.mjs tests/query.test.mjs tests/data.test.mjs",
     "build:web": "node scripts/build-site.mjs",
     "preview": "node scripts/serve-site.mjs",
     "test:web": "node --test tests/server.test.mjs",

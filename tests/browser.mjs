@@ -34,6 +34,11 @@ try{
    assert.deepEqual(await page.locator('.period-option[aria-pressed="true"]').evaluateAll(buttons=>buttons.map(button=>Number(button.dataset.period))),[]);
    assert.equal(await page.locator('#period-selection-count').textContent(),'未选节次');
    assert.match(await page.locator('#state-panel').textContent(),/请选择节次/);
+   await page.locator('.period-preset').first().click();
+   assert.deepEqual(await page.locator('.period-option[aria-pressed="true"]').evaluateAll(buttons=>buttons.map(button=>Number(button.dataset.period))),[1,2,3,4]);
+   assert.equal(await page.locator('.period-preset').first().getAttribute('aria-pressed'),'true');
+   await page.locator('.period-clear').click();
+   assert.equal(await page.locator('.period-option[aria-pressed="true"]').count(),0);
    assert.equal(await page.locator('#date-picker').isVisible(),true);
    await page.evaluate(()=>{window.__roomgapPickerOpened=false;HTMLInputElement.prototype.showPicker=function(){window.__roomgapPickerOpened=true;};});
    await page.locator('#date-picker').click();assert.equal(await page.evaluate(()=>window.__roomgapPickerOpened),true);

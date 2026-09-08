@@ -36,6 +36,12 @@ function renderPeriodPicker() {
     return `<button type="button" class="period-option${selected?' selected':''}" data-period="${period}" aria-pressed="${selected}"><strong>${period}</strong><span>节</span></button>`;
   }).join('');
   $('period-selection-count').textContent=selectedPeriods.size?`已选 ${selectedPeriods.size} 节`:'未选节次';
+  document.querySelectorAll('.period-preset').forEach(button=>{
+    const periods=button.dataset.periods.split(',').map(Number);
+    const active=periods.length===selectedPeriods.size&&periods.every(period=>selectedPeriods.has(period));
+    button.setAttribute('aria-pressed',String(active));
+  });
+  document.querySelector('.period-clear').disabled=!selectedPeriods.size;
 }
 function showState(kind, title, description, action) {
   $('state-panel').hidden = false;
@@ -225,6 +231,11 @@ $('period-picker').addEventListener('click',event=>{
   const button=event.target.closest('button[data-period]');if(!button)return;
   const period=Number(button.dataset.period);
   if(selectedPeriods.has(period))selectedPeriods.delete(period);else selectedPeriods.add(period);
+  renderPeriodPicker();renderResults();
+});
+$('period-presets').addEventListener('click',event=>{
+  const button=event.target.closest('button[data-periods]');if(!button)return;
+  selectedPeriods=new Set(button.dataset.periods?button.dataset.periods.split(',').map(Number):[]);
   renderPeriodPicker();renderResults();
 });
 for(const control of [controls.building,controls.capacity])control.addEventListener('change',renderResults);

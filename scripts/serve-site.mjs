@@ -21,12 +21,12 @@ export async function startServer({port=4173,root=fileURLToPath(new URL('../dist
       res.end(req.method==='HEAD'?undefined:content);
     } catch(error) {res.writeHead(error instanceof URIError?400:404,{'Content-Type':'text/plain; charset=utf-8'}).end('未找到文件');}
   });
-  await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(port,'127.0.0.1',resolve);});
+  await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(port,'0.0.0.0',resolve);});
   return server;
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
   const port=Number(process.env.ROOMGAP_PORT||4173);
   if(!Number.isInteger(port)||port<1||port>65535)throw Error('ROOMGAP_PORT 必须是有效端口');
   const server=await startServer({port});
-  console.log(`RoomGap preview: http://127.0.0.1:${server.address().port}`);
+  console.log(`RoomGap preview listening on http://0.0.0.0:${server.address().port}`);
 }
