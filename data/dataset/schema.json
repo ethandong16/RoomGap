@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "catalogDigest": "23b3c3ff777995022258764c25c900e9f00da0d097baeaf49ba41f9894e702fa",
+  "periods": 13,
+  "roomReference": "room字段为rooms.json的零起始数组索引",
+  "maskEncoding": "第n节对应1<<(n-1)；13节全为1是8191",
+  "intervalEncoding": "freeIntervals为闭区间[startPeriod,endPeriod]",
+  "missingData": "未知节次不得当作空闲",
+  "timezone": "Asia/Shanghai"
+}

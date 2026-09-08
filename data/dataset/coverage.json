@@ -1,0 +1,734 @@
+{
+  "complete": true,
+  "roomCount": 623,
+  "expectedBuildingDays": 10080,
+  "verifiedBuildingDays": 10080,
+  "roomDays": 87220,
+  "periodStates": 1133860,
+  "unknownRoomDays": 0,
+  "orphanRoomIds": [
+    "01/14/10阶(d)",
+    "01/17/301",
+    "01/17/302",
+    "01/17/303",
+    "01/17/304",
+    "01/54/201(d)"
+  ],
+  "missing": [],
+  "anomalies": [],
+  "dateCoverage": [
+    {
+      "date": "2026-08-31",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-01",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-02",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-03",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-04",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-05",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-06",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-07",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-08",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-09",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-10",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-11",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-12",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-13",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-14",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-15",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-16",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-17",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-18",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-19",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-20",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-21",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-22",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-23",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-24",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-25",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-26",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-27",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-28",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-29",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-09-30",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-01",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-02",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-03",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-04",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-05",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-06",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-07",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-08",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-09",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-10",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-11",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-12",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-13",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-14",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-15",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-16",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-17",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-18",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-19",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-20",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-21",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-22",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-23",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-24",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-25",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-26",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-27",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-28",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-29",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-30",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-10-31",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-01",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-02",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-03",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-04",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-05",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-06",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-07",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-08",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-09",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-10",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-11",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-12",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-13",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-14",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-15",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-16",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-17",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-18",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-19",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-20",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-21",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-22",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-23",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-24",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-25",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-26",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-27",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-28",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-29",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-11-30",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-01",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-02",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-03",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-04",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-05",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-06",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-07",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-08",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-09",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-10",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-11",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-12",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-13",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-14",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-15",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-16",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-17",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-18",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-19",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-20",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-21",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-22",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-23",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-24",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-25",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-26",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-27",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-28",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-29",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-30",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2026-12-31",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2027-01-01",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2027-01-02",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2027-01-03",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2027-01-04",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2027-01-05",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2027-01-06",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2027-01-07",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2027-01-08",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2027-01-09",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2027-01-10",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2027-01-11",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2027-01-12",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2027-01-13",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2027-01-14",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2027-01-15",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2027-01-16",
+      "buildings": 72,
+      "expected": 72
+    },
+    {
+      "date": "2027-01-17",
+      "buildings": 72,
+      "expected": 72
+    }
+  ],
+  "weekdayMismatches": 0,
+  "weekMaskMismatches": 0,
+  "generatedAt": "2026-09-07T16:29:26.113Z",
+  "occupiedRoomDays": 21892,
+  "firstCapture": "2026-09-07T16:08:01.372Z",
+  "lastCapture": "2026-09-07T16:29:17.742Z",
+  "resourceKinds": {
+    "virtual": 129,
+    "special-purpose": 106,
+    "classroom": 298,
+    "sports": 4,
+    "unspecified": 86
+  }
+}

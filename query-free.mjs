@@ -1,0 +1,11 @@
+import {readFile} from 'node:fs/promises';
+import {intervalMask} from './semester-model.mjs';
+const [date,first='1',last='13',campus]=process.argv.slice(2);
+const start=Number(first),end=Number(last);
+if(!/^\d{4}-\d{2}-\d{2}$/.test(date||'')||!Number.isInteger(start)||!Number.isInteger(end)||start<1||end>13||start>end)throw Error('用法：node query-free.mjs YYYY-MM-DD 起始节 结束节 [校区]');
+const load=async p=>JSON.parse(await readFile(p,'utf8'));
+const [rooms,day,coverage]=await Promise.all([load('data/dataset/rooms.json'),load(`data/dataset/days/${date}.json`),load('data/dataset/coverage.json')]);
+if(!coverage.complete)throw Error('全量数据尚未通过覆盖检查，请等待采集及构建完成');
+const mask=intervalMask(start,end);
+const candidates=day.rooms.filter(r=>(r.freeMask&mask)===mask).map(r=>rooms[r.room]).filter(r=>['classroom','unspecified'].includes(r.resourceKind)&&(!campus||r.campus===campus));
+console.log(JSON.stringify({date,startPeriod:start,endPeriod:end,count:candidates.length,note:'无已记录占用；不保证教室实际开放。未列入虚拟资源、体育场地及专用场所。',rooms:candidates.map(r=>({id:r.id,campus:r.campus,building:r.building,name:r.name,capacity:r.capacity,type:r.type}))},null,2));
