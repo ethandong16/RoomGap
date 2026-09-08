@@ -46,6 +46,14 @@ try{
    });
    assert.equal(dateHitTarget,'date');
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+   assert.equal(await page.locator('#back-to-top').getAttribute('data-visible'),'false');
+   await page.locator('.period-preset').first().click();await ready(page);
+   await page.evaluate(()=>scrollTo(0,document.documentElement.scrollHeight));
+   await page.locator('#back-to-top[data-visible="true"]').waitFor();
+   await page.locator('#back-to-top').click();
+   await page.waitForFunction(()=>scrollY===0);
+   await page.waitForFunction(()=>document.querySelector('#back-to-top').dataset.visible==='false');
+   await page.locator('.period-clear').click();
    await page.screenshot({path:'artifacts/desktop.png'});
  });
  await check('known 19-room query and combined filters',async()=>{

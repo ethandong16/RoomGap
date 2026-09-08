@@ -4,6 +4,7 @@
  <symbol id="info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10h.01"/></symbol>
  <symbol id="chevron-left" viewBox="0 0 24 24"><path d="m14 6-6 6 6 6"/></symbol>
  <symbol id="chevron-right" viewBox="0 0 24 24"><path d="m10 6 6 6-6 6"/></symbol>
+ <symbol id="chevron-up" viewBox="0 0 24 24"><path d="m6 14 6-6 6 6"/></symbol>
  <symbol id="arrow-right" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
  <symbol id="arrow-up-right" viewBox="0 0 24 24"><path d="m6 18 12-12M6 6h12v12"/></symbol>
  <symbol id="search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol>

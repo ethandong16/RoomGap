@@ -247,4 +247,20 @@ $('room-grid').addEventListener('click',event=>{const trigger=event.target.close
 $('close-dialog').onclick=()=>$('room-dialog').close();
 $('room-dialog').addEventListener('click',event=>{if(event.target===$('room-dialog')){const rect=$('room-dialog').getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)$('room-dialog').close();}});
 $('room-dialog').addEventListener('close',()=>{document.body.style.overflow='';detailTrigger?.focus();});
+const backToTop=$('back-to-top');
+let scrollUpdatePending=false;
+function updateBackToTop() {
+  const visible=window.scrollY>Math.min(480,window.innerHeight*.65);
+  backToTop.dataset.visible=String(visible);
+  backToTop.setAttribute('aria-hidden',String(!visible));
+  backToTop.tabIndex=visible?0:-1;
+  scrollUpdatePending=false;
+}
+window.addEventListener('scroll',()=>{
+  if(scrollUpdatePending)return;
+  scrollUpdatePending=true;
+  requestAnimationFrame(updateBackToTop);
+},{passive:true});
+backToTop.addEventListener('click',()=>window.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'}));
+updateBackToTop();
 initialize();
