@@ -1,5 +1,4 @@
 .roomgap-browser/
-.vercel/
 .wrangler/
 node_modules/
 dist/
