@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp, rm} from 'node:fs/promises';
+import {mkdtemp, rm, writeFile} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {createAnalyticsStore, normalizeEvent} from '../scripts/analytics-store.mjs';
@@ -25,7 +25,9 @@ test('analytics normalizes anonymous events and aggregates usage', async () => {
 });
 test('analytics API accepts events and protects admin data', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'roomgap-server-'));
-  const server = await startServer({port: 0, analyticsFile: path.join(root, 'events.jsonl'), adminToken: 'test-admin-token'});
+  await writeFile(path.join(root, 'index.html'), '<!doctype html><title>test</title>');
+  await writeFile(path.join(root, 'admin.html'), '<!doctype html><title>admin</title>');
+  const server = await startServer({port: 0, root, analyticsFile: path.join(root, 'events.jsonl'), adminToken: 'test-admin-token'});
   try {
     const base = `http://127.0.0.1:${server.address().port}`;
     const event = await fetch(`${base}/api/analytics/events`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({type: 'page_view', sessionId: 'session-api', path: '/'})});
