@@ -1,10 +1,10 @@
 {
   "complete": true,
-  "roomCount": 623,
+  "roomCount": 624,
   "expectedBuildingDays": 10080,
   "verifiedBuildingDays": 10080,
-  "roomDays": 87220,
-  "periodStates": 1133860,
+  "roomDays": 87360,
+  "periodStates": 1135680,
   "unknownRoomDays": 0,
   "orphanRoomIds": [
     "01/14/10阶(d)",
@@ -720,13 +720,13 @@
   ],
   "weekdayMismatches": 0,
   "weekMaskMismatches": 0,
-  "generatedAt": "2026-09-07T16:29:26.113Z",
-  "occupiedRoomDays": 21892,
-  "firstCapture": "2026-09-07T16:08:01.372Z",
-  "lastCapture": "2026-09-07T16:29:17.742Z",
+  "generatedAt": "2026-09-11T03:56:01.992Z",
+  "occupiedRoomDays": 22194,
+  "firstCapture": "2026-09-11T02:05:50.168Z",
+  "lastCapture": "2026-09-11T03:28:32.337Z",
   "resourceKinds": {
     "virtual": 129,
-    "special-purpose": 106,
+    "special-purpose": 107,
     "classroom": 298,
     "sports": 4,
     "unspecified": 86

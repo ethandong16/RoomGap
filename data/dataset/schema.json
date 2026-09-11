@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "catalogDigest": "23b3c3ff777995022258764c25c900e9f00da0d097baeaf49ba41f9894e702fa",
+  "catalogDigest": "f5661778eba29e68ad5ac018b4b578fb26470b4aa20b3bb91f4647c89a9a0a11",
   "periods": 13,
   "roomReference": "room字段为rooms.json的零起始数组索引",
   "maskEncoding": "第n节对应1<<(n-1)；13节全为1是8191",

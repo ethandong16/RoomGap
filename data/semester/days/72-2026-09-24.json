@@ -1,1 +1,1 @@
-{"complete":true,"date":"2026-09-24","campusCode":"04","buildingCode":"网络","buildingIndex":72,"roomCount":1,"teachingWeek":4,"weekday":4,"capturedAt":"2026-09-07T16:27:42.235Z","orphanRoomIds":[],"busy":[]}
+{"complete":true,"date":"2026-09-24","campusCode":"04","buildingCode":"网络","buildingIndex":72,"roomCount":1,"teachingWeek":4,"weekday":4,"capturedAt":"2026-09-11T03:26:56.259Z","orphanRoomIds":[],"busy":[{"roomId":"04/网络/在线1","sessionType":"01","start":9,"length":1,"module":"06","weekMask":"001111000000000000000000","weekday":4}]}
