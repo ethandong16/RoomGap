@@ -1,4 +1,6 @@
 .roomgap-browser/
+.roomgap-login-browser/
+.roomgap-auth.json
 .wrangler/
 node_modules/
 dist/

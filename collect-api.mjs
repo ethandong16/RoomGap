@@ -5,16 +5,28 @@ const base='http://jwxtxs.tust.edu.cn:46110';
 const index=base+'/student/teachingResources/classroomUseStatus/index';
 const endpoint=base+'/student/teachingResources/classroomUseStatus/jasInfo';
 const out='data/semester';
-const {chromium}=await import(process.env.ROOMGAP_PLAYWRIGHT_MODULE ? pathToFileURL(process.env.ROOMGAP_PLAYWRIGHT_MODULE).href : 'playwright');
+const {chromium,request:playwrightRequest}=await import(process.env.ROOMGAP_PLAYWRIGHT_MODULE ? pathToFileURL(process.env.ROOMGAP_PLAYWRIGHT_MODULE).href : 'playwright');
 await mkdir(out+'/days',{recursive:true});
-const context=await chromium.launchPersistentContext('.roomgap-browser',{channel:'chrome',headless:false,args:['--window-position=80,80','--window-size=1200,850']});
+const browserOptions={
+  headless:process.env.ROOMGAP_HEADLESS==='1',
+  args:['--window-position=80,80','--window-size=1200,850','--disable-dev-shm-usage','--disable-gpu']
+};
+if(process.platform==='linux'&&process.getuid?.()===0)browserOptions.args.push('--no-sandbox');
+if(process.env.ROOMGAP_BROWSER_CHANNEL)browserOptions.channel=process.env.ROOMGAP_BROWSER_CHANNEL;
+if(process.env.ROOMGAP_BROWSER_EXECUTABLE)browserOptions.executablePath=process.env.ROOMGAP_BROWSER_EXECUTABLE;
+const context=await chromium.launchPersistentContext(process.env.ROOMGAP_BROWSER_PROFILE||'.roomgap-browser',browserOptions);
+if(process.env.ROOMGAP_COOKIES_FILE){
+ const cookies=JSON.parse(await readFile(process.env.ROOMGAP_COOKIES_FILE,'utf8'));
+ if(!Array.isArray(cookies))throw Error('Cookie file must contain an array');
+ await context.addCookies(cookies);
+}
 const page=context.pages()[0]||await context.newPage();
 page.setDefaultTimeout(30000);
 let manifest;
 const save=async(name,value)=>writeFile(`${out}/${name}`,JSON.stringify(value),'utf8');
 const id=r=>[r.campusNumber,r.teachingBuildingNumber,r.classroomNumber].join('/');
 try {
- await page.goto(index);
+ await page.goto(index,{waitUntil:'domcontentloaded',timeout:30000});
  if(!await page.locator('#jxlBody').isVisible())console.log('LOGIN_WAIT: 请在Chrome登录并进入教室使用状况查询；检测到目录后自动继续。');
  const loginDeadline=Date.now()+600000;
  while(!await page.locator('#jxlBody').isVisible()){
@@ -34,14 +46,18 @@ try {
    return {rowIndex,campus,name:c[c.length-2].innerText.trim(),campusCode:decodeURIComponent(parts[4]),buildingCode:decodeURIComponent(parts[5]),path,queryable:true};
   });
  });
- await page.locator('#jxlBody tr').first().getByRole('button').click();
- await page.waitForLoadState('networkidle');
+ const firstBuilding=buildings.find(b=>b.queryable);
+ await page.goto(base+firstBuilding.path,{waitUntil:'domcontentloaded',timeout:30000});
  const form=await page.locator('#searchCondition').evaluate(el=>Object.fromEntries(new FormData(el)));
  const roomTypes=JSON.parse(await page.locator('#classroomTypes').inputValue());
  const sections=JSON.parse(await page.locator('#section').inputValue());
+ const authCookieHeader=(await context.cookies()).map(c=>`${c.name}=${c.value}`).join('; ');
+ const requestReferer=page.url();
+ const browserUserAgent=await page.evaluate(()=>navigator.userAgent);
+ const apiContext=await playwrightRequest.newContext({storageState:{cookies:await context.cookies(),origins:[]},extraHTTPHeaders:{Referer:requestReferer,Origin:base,'User-Agent':browserUserAgent}});
  const request=async(f)=>{
   for(let attempt=0;attempt<3;attempt++){
-   try {const r=await context.request.post(endpoint,{form:f,timeout:30000});if(!r.ok())throw Error(`HTTP ${r.status()}`);const d=await r.json();if(!Array.isArray(d.classrooms)||!Array.isArray(d.classroomTime)||!d.jhZxjxjhb)throw Error('Invalid data or login expired');return d;}
+   try {const r=await apiContext.post(endpoint,{form:f,timeout:30000});if(!r.ok())throw Error(`HTTP ${r.status()}`);const d=await r.json();if(!Array.isArray(d.classrooms)||!Array.isArray(d.classroomTime)||!d.jhZxjxjhb)throw Error('Invalid data or login expired');return d;}
    catch(e){if(attempt===2)throw e;await delay(1000*(attempt+1));}
   }
  };
@@ -63,6 +79,7 @@ try {
  await save('rooms.json',roster);
  await save('buildings.json',buildings.map(b=>({...b,roomCount:groups.find(g=>g.rowIndex===b.rowIndex)?.roomIds.length||0})));
  await save('term.json',{id:term.zxjxjhh,startDate:dates[0],endDate:dates.at(-1),weeks:20,daysPerWeek:Number(term.codeXqb.zts),source:'official_query_response',periodsPerDay:sections[0].tjc,sections,roomTypes:roomTypes.map(t=>({code:t.classroomtypecode,name:t.classroomtypename})),sectionTypes:catalog.sectionType.map(s=>({code:s.jclxdm,name:s.jclxmc,multiplier:s.jcxss})),examMappings:catalog.codeJclxdzb.map(x=>x.id),termSeason:term.xqdm,termType:term.xqlxdm});
+ await context.close();
  const tasks=[];let cached=0;
  for(const b of active)for(const date of dates){
   const file=`days/${b.rowIndex}-${date}.json`;
