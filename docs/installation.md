@@ -22,13 +22,15 @@ node scripts/serve-site.mjs
 
 打开 <http://127.0.0.1:4173>。构建会先校验数据，输出到 `dist/`。预览服务只提供 `dist`，不能代替生产环境的 HTTPS 托管。端口用 `ROOMGAP_PORT` 指定，Windows 也可使用 `./run-web.ps1 -Port 4174`。
 
+预览服务也包含使用观测后台：启动后终端会打印一次性管理令牌，访问 <http://127.0.0.1:4173/admin.html> 查看统计。部署到服务器时请设置 `ROOMGAP_ADMIN_TOKEN`，并将 `data/analytics/` 纳入备份；该服务不会记录 IP、User-Agent 或账号信息。纯静态托管不会处理 `/api/analytics/*`，需要用 Node 服务承载 API 或单独反向代理。
+
 ## Debian / Ubuntu 采集机
 
 以下是管理员安装系统依赖的示例。系统必须使用与当前发行版一致的软件源；Ubuntu 的 Chromium 包可能通过 Snap 提供，请确认实际浏览器路径。
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y git ca-certificates curl chromium cron util-linux logrotate
+sudo apt-get install -y git ca-certificates curl chromium cron util-linux
 sudo systemctl enable --now cron
 ```
 

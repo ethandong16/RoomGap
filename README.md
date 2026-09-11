@@ -25,6 +25,12 @@ node scripts/serve-site.mjs
 
 打开 <http://127.0.0.1:4173>。预览服务监听 `0.0.0.0:4173`，局域网设备也可访问。仓库包含可直接构建的完整数据快照；只运行网站无需安装 Playwright，也无需登录学校系统。
 
+### 使用观测后台
+
+预览服务同时提供匿名使用观测。启动 `node scripts/serve-site.mjs` 后，终端会打印管理后台地址和本次启动生成的管理令牌，打开 `/admin.html` 并输入令牌即可查看访问次数、匿名会话、查询趋势、热门条件和最近事件。生产环境请设置 `ROOMGAP_ADMIN_TOKEN`，并通过 HTTPS 和反向代理发布；事件追加保存到 `data/analytics/events.jsonl`，该目录已被 Git 忽略。
+
+前台只上报页面访问、查询、教室详情和主题切换，不保存 IP、User-Agent、账号或联系方式。Cloudflare Pages 等纯静态托管不会运行观测 API；需要使用 Node 预览服务或将 `/api/analytics/*` 反代到本服务。
+
 需要采集、登录桥接或开发时执行 `npm ci`。Windows 可用 `./run-web.ps1` 一键构建并预览。
 
 ## 安装与维护

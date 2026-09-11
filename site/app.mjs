@@ -12,6 +12,29 @@ let themePreference=document.documentElement.dataset.themePreference||'system';
 let selectedPeriods = new Set();
 let catalog, currentDay, matches = [], visibleCount = 24, loading = true, hadError = false;
 let detailTrigger;
+let lastTrackedQuery = '';
+
+const analytics = (() => {
+  let sessionId = '';
+  try { sessionId = localStorage.getItem('roomgap-session') || ''; } catch {}
+  if (!/^[A-Za-z0-9_-]{8,100}$/.test(sessionId)) {
+    sessionId = globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    try { localStorage.setItem('roomgap-session', sessionId); } catch {}
+  }
+  function track(type, data = {}) {
+    const payload = JSON.stringify({type, sessionId, path: location.pathname, data});
+    try {
+      if (navigator.sendBeacon) {
+        const accepted = navigator.sendBeacon('/api/analytics/events', new Blob([payload], {type: 'application/json'}));
+        if (accepted) return;
+      }
+      fetch('/api/analytics/events', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: payload, keepalive: true}).catch(() => {});
+    } catch {}
+  }
+  return {track};
+})();
+analytics.track('page_view');
+
 const moreObserver = new IntersectionObserver(entries=>{
   if(entries.some(entry=>entry.isIntersecting))appendMoreRooms();
 }, {rootMargin:'0px 0px 300px 0px'});
@@ -134,6 +157,18 @@ function renderResults() {
     $('state-panel').hidden = true;
     paintCards();
   }
+  const queryData = {
+    date: controls.date.value,
+    campus: controls.campus.selectedOptions[0]?.textContent || '全部校区',
+    building: controls.building.selectedOptions[0]?.textContent || '全部教学楼',
+    periods: selectedPeriodList(),
+    resultCount: matches.length
+  };
+  const querySignature = JSON.stringify(queryData);
+  if (querySignature !== lastTrackedQuery) {
+    lastTrackedQuery = querySignature;
+    analytics.track('query', queryData);
+  }
   announce(`${prettyDate(controls.date.value)}，${selectedPeriodText()}，找到 ${matches.length} 间空闲教室`);
 }
 async function loadSelectedDay() {
@@ -186,6 +221,7 @@ function resetFilters() {
 function openRoom(index, trigger) {
   const entry=matches[index];if(!entry)return;
   const {room,state}=entry;
+  analytics.track('room_detail', {room: room.name, campus: room.campus, building: room.building || room.buildingCode});
   detailTrigger=trigger;
   $('dialog-title').textContent=room.name;
   const periods=Array.from({length:13},(_,i)=>{
@@ -240,7 +276,12 @@ async function initialize() {
 
 $('query-form').addEventListener('submit',event=>{event.preventDefault();renderResults();});
 const themeSwitcher=$('theme-switcher');
-themeSwitcher.addEventListener('click',event=>{const button=event.target.closest('button[data-theme]');if(button)applyTheme(button.dataset.theme);});
+themeSwitcher.addEventListener('click',event=>{
+  const button=event.target.closest('button[data-theme]');
+  if(!button)return;
+  applyTheme(button.dataset.theme);
+  analytics.track('theme_change', {theme: button.dataset.theme});
+});
 themeSwitcher.addEventListener('keydown',event=>{
   if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
   event.preventDefault();

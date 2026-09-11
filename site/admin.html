@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f5f2">
+  <meta name="color-scheme" content="light dark">
+  <title>RoomGap · 使用观测</title>
+  <script>
+    (()=>{let p='system';try{const s=localStorage.getItem('roomgap-theme');if(['system','light','dark'].includes(s))p=s;}catch{};const t=p==='system'&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':p==='dark'?'dark':'light';document.documentElement.dataset.theme=t;document.documentElement.dataset.themePreference=p;document.querySelector('meta[name="theme-color"]').content=t==='dark'?'#111613':'#f4f5f2';})();
+  </script>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <link rel="stylesheet" href="./admin.css">
+  <script type="module" src="./admin.mjs"></script>
+</head>
+<body>
+  <header class="admin-header">
+    <div class="admin-header-inner">
+      <a class="admin-brand" href="./"><span class="admin-mark">R<span>.</span></span><span><strong>RoomGap</strong><small>使用观测</small></span></a>
+      <nav class="admin-nav" aria-label="管理导航"><a href="./">回到查询</a><div class="theme-switcher" role="radiogroup" aria-label="外观模式"><button type="button" data-theme="system" role="radio" aria-label="跟随系统">系统</button><button type="button" data-theme="light" role="radio" aria-label="浅色模式">浅色</button><button type="button" data-theme="dark" role="radio" aria-label="深色模式">深色</button></div></nav>
+    </div>
+  </header>
+  <main class="admin-shell">
+    <section class="admin-hero"><div><p class="eyebrow">后台 / ANALYTICS</p><h1>使用观测</h1><p class="hero-subtitle">查看 RoomGap 的访问、查询与教室使用偏好。</p></div><span class="live-indicator"><i></i>数据实时写入</span></section>
+
+    <section id="auth-panel" class="auth-panel" aria-labelledby="auth-title">
+      <div class="auth-copy"><span class="auth-icon">⌁</span><div><h2 id="auth-title">输入管理令牌</h2><p>令牌由预览服务启动时生成，或使用 `ROOMGAP_ADMIN_TOKEN` 配置。</p></div></div>
+      <form id="auth-form"><label for="admin-token">管理令牌</label><div class="token-row"><input id="admin-token" type="password" autocomplete="current-password" placeholder="粘贴管理令牌"><button type="submit">进入观测台</button></div><p id="auth-error" class="form-error" role="alert"></p></form>
+    </section>
+
+    <section id="dashboard" hidden>
+      <div class="dashboard-toolbar"><div class="range-picker" role="group" aria-label="统计时间范围"><span>时间范围</span><button type="button" data-days="1">今天</button><button type="button" data-days="7" aria-pressed="true">近 7 天</button><button type="button" data-days="30">近 30 天</button><button type="button" data-days="90">近 90 天</button></div><div class="toolbar-actions"><span id="last-updated">—</span><button type="button" id="refresh-button" class="refresh-button" title="刷新数据">刷新</button><button type="button" id="logout-button" class="logout-button">退出</button></div></div>
+      <div id="dashboard-error" class="dashboard-error" role="alert" hidden></div>
+      <section class="metric-grid" aria-label="核心指标"><article class="metric-card"><span>访问次数</span><strong id="metric-visits">—</strong><small>页面打开次数</small></article><article class="metric-card"><span>匿名会话</span><strong id="metric-sessions">—</strong><small>按浏览器生成的匿名标识</small></article><article class="metric-card"><span>查询次数</span><strong id="metric-queries">—</strong><small>提交过有效节次的查询</small></article><article class="metric-card"><span>详情查看</span><strong id="metric-details">—</strong><small>打开教室全天安排</small></article></section>
+
+      <section class="dashboard-grid">
+        <article class="dashboard-panel trend-panel"><div class="panel-heading"><div><span class="panel-kicker">趋势</span><h2>每日使用量</h2></div><span class="chart-legend"><i class="visit-key"></i>访问 <i class="query-key"></i>查询</span></div><div id="trend-bars" class="trend-bars" aria-label="每日访问和查询趋势"></div></article>
+        <article class="dashboard-panel"><div class="panel-heading"><div><span class="panel-kicker">偏好</span><h2>热门校区</h2></div></div><div id="popular-campuses" class="rank-list"></div></article>
+      </section>
+      <section class="dashboard-grid lower-grid"><article class="dashboard-panel"><div class="panel-heading"><div><span class="panel-kicker">偏好</span><h2>热门教学楼</h2></div></div><div id="popular-buildings" class="rank-list"></div></article><article class="dashboard-panel"><div class="panel-heading"><div><span class="panel-kicker">偏好</span><h2>常查节次</h2></div></div><div id="popular-periods" class="rank-list"></div></article><article class="dashboard-panel"><div class="panel-heading"><div><span class="panel-kicker">详情</span><h2>热门教室</h2></div></div><div id="popular-rooms" class="rank-list"></div></article></section>
+
+      <section class="dashboard-panel recent-panel"><div class="panel-heading"><div><span class="panel-kicker">日志</span><h2>最近访问记录</h2></div><span id="recent-count" class="panel-meta">—</span></div><div class="table-wrap"><table><thead><tr><th>时间</th><th>事件</th><th>匿名会话</th><th>详情</th></tr></thead><tbody id="recent-events"></tbody></table></div></section>
+    </section>
+  </main>
+  <footer class="admin-footer"><span>RoomGap · 匿名使用数据</span><span>仅供维护者内部使用</span></footer>
+</body>
+</html>
