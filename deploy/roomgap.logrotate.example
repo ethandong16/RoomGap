@@ -1,0 +1,12 @@
+# Administrator: adapt both paths and the account, then place in /etc/logrotate.d/roomgap.
+# Use "su root root" and /var/log/roomgap-collect*.log for the existing root install.
+/home/roomgap/RoomGap/logs/*.log {
+  su roomgap roomgap
+  weekly
+  rotate 4
+  compress
+  delaycompress
+  missingok
+  notifempty
+  copytruncate
+}

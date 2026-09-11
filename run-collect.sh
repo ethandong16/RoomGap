@@ -49,6 +49,16 @@ for file in collect-api.mjs build-dataset.mjs verify-dataset.mjs semester-model.
 done
 node --input-type=module -e 'import {pathToFileURL} from "node:url"; await import(process.env.ROOMGAP_PLAYWRIGHT_MODULE ? pathToFileURL(process.env.ROOMGAP_PLAYWRIGHT_MODULE).href : "playwright")'
 
+check_publish_repo() {
+  command -v git >/dev/null || { echo 'ERROR: git is required for automatic publication' >&2; exit 1; }
+  [[ "$(git rev-parse --show-toplevel)" == "$(pwd -P)" ]] || { echo 'ERROR: publication requires a complete Git checkout at the project root' >&2; exit 1; }
+  [[ "$(git branch --show-current)" == main ]] || { echo 'ERROR: automatic publication requires the main branch' >&2; exit 1; }
+  git remote get-url origin >/dev/null
+  git var GIT_AUTHOR_IDENT >/dev/null
+  git diff --cached --quiet || { echo 'ERROR: commit or unstage existing staged changes before automatic publication' >&2; exit 1; }
+}
+if [[ "${ROOMGAP_GIT_PUSH:-0}" == 1 ]]; then check_publish_repo; fi
+
 export ROOMGAP_HEADLESS="${ROOMGAP_HEADLESS:-1}"
 export ROOMGAP_REFRESH="${ROOMGAP_REFRESH:-0}"
 export ROOMGAP_BROWSER_PROFILE="${ROOMGAP_BROWSER_PROFILE:-$PWD/.roomgap-browser}"
@@ -82,14 +92,14 @@ stage="完整性校验"
 node verify-dataset.mjs
 if [[ "${ROOMGAP_GIT_PUSH:-0}" == "1" ]]; then
   stage="GitHub 推送"
-  git add data/semester data/dataset
+  check_publish_repo
+  git add -- data/semester data/dataset
   if ! git diff --cached --quiet; then
-    git commit -m "Update collected classroom data"
-    git push origin main
-    notify "RoomGap 网站更新" "数据已推送到 GitHub，等待网站自动部署"
-  else
-    notify "RoomGap 网站无需更新" "采集完成，数据没有变化"
+    git commit --only -m "Update collected classroom data" -- data/semester data/dataset
   fi
+  # Retry a previously committed but unpushed snapshot even when this run has no diff.
+  GIT_TERMINAL_PROMPT=0 git push origin main
+  notify "RoomGap 数据已推送" "数据已同步到 GitHub；网站是否发布成功请查看托管平台状态。"
 fi
 echo 'SUCCESS: collection, dataset build and verification completed'
 notify "RoomGap 采集完成" "$(date '+%F %T %Z')，数据已通过完整性校验。"

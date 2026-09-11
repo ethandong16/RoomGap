@@ -1,6 +1,8 @@
 .roomgap-browser/
 .roomgap-login-browser/
 .roomgap-auth.json
+.roomgap-collect.lock
+roomgap.env
 .wrangler/
 node_modules/
 dist/

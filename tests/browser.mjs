@@ -26,6 +26,7 @@ async function setPeriods(page,periods){
 }
 try{
  const desktop=await context(),page=await desktop.newPage();
+ await page.clock.setFixedTime(new Date('2026-09-08T04:00:00Z'));
  await page.goto(base);await settled(page);
  await check('desktop initial screen and content',async()=>{
    assert.equal(await page.locator('#candidate-count').textContent(),'384');

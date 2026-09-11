@@ -1,0 +1,7 @@
+# User crontab (crontab -e), not /etc/crontab. Adjust paths before installing.
+# Create /home/roomgap/RoomGap/logs first. Times use the server's local timezone.
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Refresh existing schedules every Sunday at 03:00.
+0 3 * * 0 cd /home/roomgap/RoomGap && ROOMGAP_REFRESH=1 ./run-collect.sh >> /home/roomgap/RoomGap/logs/collect.log 2>&1

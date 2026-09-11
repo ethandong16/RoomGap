@@ -15,18 +15,19 @@ if(process.platform==='linux'&&process.getuid?.()===0)browserOptions.args.push('
 if(process.env.ROOMGAP_BROWSER_CHANNEL)browserOptions.channel=process.env.ROOMGAP_BROWSER_CHANNEL;
 if(process.env.ROOMGAP_BROWSER_EXECUTABLE)browserOptions.executablePath=process.env.ROOMGAP_BROWSER_EXECUTABLE;
 const context=await chromium.launchPersistentContext(process.env.ROOMGAP_BROWSER_PROFILE||'.roomgap-browser',browserOptions);
-if(process.env.ROOMGAP_COOKIES_FILE){
- const cookies=JSON.parse(await readFile(process.env.ROOMGAP_COOKIES_FILE,'utf8'));
- if(!Array.isArray(cookies))throw Error('Cookie file must contain an array');
- await context.addCookies(cookies);
-}
 const page=context.pages()[0]||await context.newPage();
 page.setDefaultTimeout(30000);
-let manifest;
+let manifest,apiContext;
 const save=async(name,value)=>writeFile(`${out}/${name}`,JSON.stringify(value),'utf8');
 const id=r=>[r.campusNumber,r.teachingBuildingNumber,r.classroomNumber].join('/');
 try {
+ if(process.env.ROOMGAP_COOKIES_FILE){
+  const cookies=JSON.parse(await readFile(process.env.ROOMGAP_COOKIES_FILE,'utf8'));
+  if(!Array.isArray(cookies))throw Error('Cookie file must contain an array');
+  await context.addCookies(cookies);
+ }
  await page.goto(index,{waitUntil:'domcontentloaded',timeout:30000});
+ if(browserOptions.headless&&!await page.locator('#jxlBody').isVisible())throw Error('Login expired: refresh .roomgap-auth.json using the login bridge');
  if(!await page.locator('#jxlBody').isVisible())console.log('LOGIN_WAIT: 请在Chrome登录并进入教室使用状况查询；检测到目录后自动继续。');
  const loginDeadline=Date.now()+600000;
  while(!await page.locator('#jxlBody').isVisible()){
@@ -47,18 +48,20 @@ try {
   });
  });
  const firstBuilding=buildings.find(b=>b.queryable);
+ if(!firstBuilding)throw Error('No queryable buildings found');
  await page.goto(base+firstBuilding.path,{waitUntil:'domcontentloaded',timeout:30000});
  const form=await page.locator('#searchCondition').evaluate(el=>Object.fromEntries(new FormData(el)));
  const roomTypes=JSON.parse(await page.locator('#classroomTypes').inputValue());
  const sections=JSON.parse(await page.locator('#section').inputValue());
- const authCookieHeader=(await context.cookies()).map(c=>`${c.name}=${c.value}`).join('; ');
  const requestReferer=page.url();
  const browserUserAgent=await page.evaluate(()=>navigator.userAgent);
- const apiContext=await playwrightRequest.newContext({storageState:{cookies:await context.cookies(),origins:[]},extraHTTPHeaders:{Referer:requestReferer,Origin:base,'User-Agent':browserUserAgent}});
+ apiContext=await playwrightRequest.newContext({storageState:{cookies:await context.cookies(),origins:[]},extraHTTPHeaders:{Referer:requestReferer,Origin:base,'User-Agent':browserUserAgent}});
  const request=async(f)=>{
   for(let attempt=0;attempt<3;attempt++){
-   try {const r=await apiContext.post(endpoint,{form:f,timeout:30000});if(!r.ok())throw Error(`HTTP ${r.status()}`);const d=await r.json();if(!Array.isArray(d.classrooms)||!Array.isArray(d.classroomTime)||!d.jhZxjxjhb)throw Error('Invalid data or login expired');return d;}
+   let response;
+   try {response=await apiContext.post(endpoint,{form:f,timeout:30000});if(!response.ok())throw Error(`HTTP ${response.status()}`);const d=await response.json();if(!Array.isArray(d.classrooms)||!Array.isArray(d.classroomTime)||!d.jhZxjxjhb)throw Error('Invalid data or login expired');return d;}
    catch(e){if(attempt===2)throw e;await delay(1000*(attempt+1));}
+   finally {await response?.dispose();}
   }
  };
  const catalog=await request({...form,xqh:'',jxlh:'',searchDate:'2026-08-31'});
@@ -116,4 +119,4 @@ try {
  console.log('FINISHED',JSON.stringify({complete:manifest.complete,completed:manifest.completedQueries,expected:manifest.expectedQueries,failures:manifest.failures}));
  if(!manifest.complete)process.exitCode=1;
 }catch(e){console.error(e.message);if(manifest){manifest.failures.push({message:e.message});await save('manifest.json',manifest);}process.exitCode=1;}
-finally{await context.close();}
+finally{await apiContext?.dispose();await context.close();}

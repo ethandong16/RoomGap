@@ -1,16 +1,23 @@
 {
-  "name": "roomgap-data",
+  "name": "roomgap",
   "version": "1.0.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
+  "description": "天津科技大学空闲教室查询：静态网站、排课数据校验与 Linux 自动采集",
+  "repository": {"type": "git", "url": "https://github.com/ethandong16/RoomGap.git"},
+  "engines": {"node": ">=20"},
   "scripts": {
     "collect": "node collect-api.mjs",
+    "login": "node login-bridge.mjs",
     "build:data": "node build-dataset.mjs",
     "verify:data": "node verify-dataset.mjs",
     "test": "node --test semester-model.test.mjs tests/query.test.mjs tests/data.test.mjs",
     "build:web": "node scripts/build-site.mjs",
     "preview": "node scripts/serve-site.mjs",
     "test:web": "node --test tests/server.test.mjs",
+    "test:runner": "node --test tests/runner.test.mjs",
+    "test:browser": "node tests/browser.mjs",
     "query": "node query-free.mjs"
   },
   "dependencies": {"playwright": "1.62.1"}
