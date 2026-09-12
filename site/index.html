@@ -147,15 +147,7 @@
   </main>
 
   <footer class="site-footer">
-      <details class="author-credit">
-        <summary><span class="footer-brand">RoomGap<span class="brand-dot">.</span></span><span>by Ethan Dong</span><svg aria-hidden="true"><use href="./icons.svg#chevron-right"/></svg><span class="sr-only">，联系方式</span></summary>
-        <div class="author-contacts" aria-label="Ethan Dong 的联系方式">
-          <a href="https://github.com/ethandong16" target="_blank" rel="noopener noreferrer"><svg aria-hidden="true"><use href="./icons.svg#contact-github"/></svg><span>GitHub</span><span>ethandong16</span></a>
-          <a href="https://x.com/ethandong06" target="_blank" rel="noopener noreferrer"><svg aria-hidden="true"><use href="./icons.svg#contact-x"/></svg><span>X</span><span>@ethandong06</span></a>
-          <a href="mailto:yimingdong16@gmail.com"><svg aria-hidden="true"><use href="./icons.svg#contact-mail"/></svg><span>Email</span><span>yimingdong16@gmail.com</span></a>
-          <p><svg aria-hidden="true"><use href="./icons.svg#contact-qq"/></svg><span>QQ</span><span>2675943788</span></p>
-        </div>
-      </details>
+      <button id="author-trigger" class="author-trigger" type="button" aria-haspopup="dialog"><span class="footer-brand">RoomGap<span class="brand-dot">.</span></span><span>by Ethan Dong</span><svg aria-hidden="true"><use href="./icons.svg#chevron-right"/></svg></button>
     <span class="footer-disclaimer">非学校官方网站 · 仅供查询参考</span>
   </footer>
 
@@ -164,6 +156,15 @@
   <dialog id="room-dialog" aria-labelledby="dialog-title">
     <div class="dialog-head"><div><p class="dialog-eyebrow">教室全天安排</p><h2 id="dialog-title"></h2></div><button id="close-dialog" type="button" class="icon-button" aria-label="关闭教室详情"><svg aria-hidden="true"><use href="./icons.svg#close"/></svg></button></div>
     <div id="dialog-body"></div>
+  </dialog>
+  <dialog id="author-dialog" class="author-dialog" aria-labelledby="author-dialog-title">
+    <div class="author-dialog-head"><div><p class="dialog-eyebrow">RoomGap</p><h2 id="author-dialog-title">Ethan Dong</h2></div><button id="close-author-dialog" type="button" class="icon-button" aria-label="关闭作者信息"><svg aria-hidden="true"><use href="./icons.svg#close"/></svg></button></div>
+    <div class="author-dialog-body"><div class="author-links" aria-label="Ethan Dong 的联系方式">
+      <a class="author-link" href="https://github.com/ethandong16" target="_blank" rel="noopener noreferrer" aria-label="GitHub" title="GitHub"><svg aria-hidden="true"><use href="./icons.svg#contact-github"/></svg></a>
+      <a class="author-link" href="https://x.com/ethandong06" target="_blank" rel="noopener noreferrer" aria-label="X" title="X"><svg aria-hidden="true"><use href="./icons.svg#contact-x"/></svg></a>
+      <a class="author-link" href="mailto:yimingdong16@gmail.com" aria-label="Email" title="Email"><svg aria-hidden="true"><use href="./icons.svg#contact-mail"/></svg></a>
+      <span class="author-link author-qq" role="img" aria-label="QQ" title="QQ"><svg aria-hidden="true"><use href="./icons.svg#contact-qq"/></svg></span>
+    </div></div>
   </dialog>
   <noscript><p class="noscript">请启用 JavaScript 后查询空闲教室。</p></noscript>
 </body>

@@ -12,6 +12,7 @@ let themePreference=document.documentElement.dataset.themePreference||'system';
 let selectedPeriods = new Set();
 let catalog, currentDay, matches = [], visibleCount = 24, loading = true, hadError = false;
 let detailTrigger;
+let authorTrigger;
 let lastTrackedQuery = '';
 
 const analytics = (() => {
@@ -325,6 +326,20 @@ $('room-grid').addEventListener('click',event=>{const trigger=event.target.close
 $('close-dialog').onclick=()=>$('room-dialog').close();
 $('room-dialog').addEventListener('click',event=>{if(event.target===$('room-dialog')){const rect=$('room-dialog').getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)$('room-dialog').close();}});
 $('room-dialog').addEventListener('close',()=>{document.body.style.overflow='';detailTrigger?.focus();});
+const authorDialog=$('author-dialog');
+$('author-trigger').onclick=()=>{
+  authorTrigger=document.activeElement;
+  authorDialog.showModal();
+  document.body.style.overflow='hidden';
+  $('close-author-dialog').focus();
+};
+$('close-author-dialog').onclick=()=>authorDialog.close();
+authorDialog.addEventListener('click',event=>{
+  if(event.target!==authorDialog)return;
+  const rect=authorDialog.getBoundingClientRect();
+  if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)authorDialog.close();
+});
+authorDialog.addEventListener('close',()=>{document.body.style.overflow='';authorTrigger?.focus();});
 const backToTop=$('back-to-top');
 let scrollUpdatePending=false;
 function updateBackToTop() {

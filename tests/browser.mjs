@@ -81,6 +81,16 @@ try{
    assert.equal(await p.locator('html').getAttribute('data-theme-preference'),'light');
    await c.close();
  });
+ await check('author contacts use an icon-only modal and restore focus',async()=>{
+   const trigger=page.locator('#author-trigger');await trigger.click();
+   const dialog=page.locator('#author-dialog');
+   assert.equal(await dialog.isVisible(),true);
+   assert.equal(await dialog.locator('.author-link').count(),4);
+   assert.deepEqual(await dialog.locator('.author-link').evaluateAll(links=>links.map(link=>link.getAttribute('aria-label'))),['GitHub','X','Email','QQ']);
+   assert.doesNotMatch(await dialog.innerText(),/GitHub|Email|QQ|\bX\b/);
+   await page.keyboard.press('Escape');assert.equal(await dialog.isVisible(),false);
+   assert.equal(await trigger.evaluate(element=>element===document.activeElement),true);
+ });
  await check('known 19-room query and combined filters',async()=>{
    await setPeriods(page,[1,2,3,4]);await ready(page);await date(page,'2026-09-08');await page.locator('#campus').selectOption('04');await count(page,19);
    await page.locator('#building').selectOption('04/11');await page.locator('#search').fill('111');await page.locator('#capacity').selectOption('100');await count(page,1);
