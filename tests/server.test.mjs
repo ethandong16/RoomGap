@@ -12,6 +12,10 @@ test('standalone dist serves modules and data, never project or browser files',a
   const coverage=await (await fetch(`${base}/data/${version}/coverage.json`)).json();
   assert.equal(coverage.complete,true);assert.ok(coverage.roomCount>0);
   assert.equal((await rooms.json()).length,coverage.roomCount);
+  assert.equal((await fetch(`${base}/api/analytics/events`,{method:'POST',headers:{'content-type':'application/json'},body:'{}'})).status,405);
+  assert.equal((await fetch(`${base}/api/analytics/summary`)).status,404);
+  assert.equal((await fetch(`${base}/admin`)).status,404);
+  assert.equal((await fetch(`${base}/admin.html`)).status,404);
   for(const resource of ['/package.json','/.roomgap-browser/Default/Cookies','/collect-api.mjs','/data/semester/manifest.json','/%2e%2e%5cpackage.json','/..%2fpackage.json'])assert.notEqual((await fetch(base+resource)).status,200);
   assert.equal((await fetch(base,{method:'POST'})).status,405);
 });

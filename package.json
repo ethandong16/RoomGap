@@ -12,7 +12,7 @@
     "login": "node login-bridge.mjs",
     "build:data": "node build-dataset.mjs",
     "verify:data": "node verify-dataset.mjs",
-    "test": "node --test semester-model.test.mjs tests/query.test.mjs tests/data.test.mjs tests/check-space.test.mjs tests/rotate-logs.test.mjs tests/analytics.test.mjs",
+    "test": "node --test semester-model.test.mjs tests/query.test.mjs tests/data.test.mjs tests/check-space.test.mjs tests/rotate-logs.test.mjs tests/functions-analytics.test.mjs",
     "build:web": "node scripts/build-site.mjs",
     "preview": "node scripts/serve-site.mjs",
     "test:web": "node --test tests/server.test.mjs",

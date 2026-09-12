@@ -78,7 +78,7 @@ async function loadDashboard() {
       $('auth-panel').hidden = false;
       $('dashboard').hidden = true;
       $('auth-error').textContent = error.message;
-    } else setError(`${error.message}。请确认预览服务已启用观测 API。`);
+    } else setError(`${error.message}。请确认 Cloudflare Pages 已绑定 D1，并配置 ANALYTICS_ADMIN_TOKEN。`);
   } finally { $('refresh-button').disabled = false; }
 }
 

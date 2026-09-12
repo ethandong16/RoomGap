@@ -25,6 +25,24 @@ node scripts/build-site.mjs
 
 首次保存后检查构建日志。后续推送到绑定分支会触发新部署；只有 Pages 的构建和发布都成功，网站才会变化。GitHub CI 负责验证和提供可下载的静态产物，本项目的 CI 不会直接发布网站。
 
+### Cloudflare Pages Functions + D1 观测
+
+仓库根目录的 `functions/` 会随 Pages 部署自动发布为 Functions。前台事件写入 D1，管理页面通过同源的 `/api/analytics/summary` 读取汇总；本地 Node 预览不提供观测页面或这些接口。
+
+1. 在 Cloudflare 控制台的 **Workers & Pages → D1** 创建数据库，例如 `roomgap-analytics`，记下数据库名称和 ID。
+2. 使用 Wrangler 将表结构执行到生产数据库（首次执行一次即可）：
+
+   ```bash
+   npx wrangler d1 execute roomgap-analytics --remote --file=migrations/0001_analytics.sql
+   ```
+
+   也可以在 D1 控制台的 SQL 栏执行 `migrations/0001_analytics.sql`。不要把本地测试数据库当成生产数据库。
+3. 打开 Pages 项目 **Settings → Functions → D1 database bindings**，新增绑定：变量名填 `DB`，数据库选择刚创建的 `roomgap-analytics`。Production 和 Preview 环境分别确认绑定，避免预览部署误写生产库。
+4. 打开 Pages 项目 **Settings → Environment variables**，在 Production 环境新增类型为 **Secret** 的 `ANALYTICS_ADMIN_TOKEN`。令牌应使用密码管理器生成的长随机值；如需要在 Preview 环境测试，再单独配置 Preview Secret。不要把令牌写入仓库、构建变量或 URL。Cloudflare 保存后不会再次显示 Secret 原文，因此需要自行妥善保存；遗失时直接替换为新值。
+5. 保存设置并重新部署一次。部署完成后访问线上 `/admin.html`，输入 `ANALYTICS_ADMIN_TOKEN` 验证汇总数据。前台 `/api/analytics/events` 返回 `204` 才表示事件已被接受；未配置 D1 时会返回 `503`，不会在本地磁盘留下统计文件。
+
+修改 Functions 或迁移文件后，都要重新部署 Pages；新增 D1 迁移请使用递增文件名，并在生产数据库执行后再发布依赖该表的代码。D1 绑定和 Secret 属于 Cloudflare 项目设置，不需要写入 `wrangler.toml`。
+
 ## 其他 HTTPS 静态托管
 
 整体上传 `dist/` 内的网页、脚本、`dataset.json` 和 `data/`。支持根路径和子目录，无需 SPA 路由重写。`.mjs` 须作为 JavaScript 提供。
