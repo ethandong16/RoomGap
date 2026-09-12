@@ -327,11 +327,26 @@ $('close-dialog').onclick=()=>$('room-dialog').close();
 $('room-dialog').addEventListener('click',event=>{if(event.target===$('room-dialog')){const rect=$('room-dialog').getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)$('room-dialog').close();}});
 $('room-dialog').addEventListener('close',()=>{document.body.style.overflow='';detailTrigger?.focus();});
 const authorDialog=$('author-dialog');
+let authorCopyTimer;
 $('author-trigger').onclick=()=>{
   authorTrigger=document.activeElement;
+  clearTimeout(authorCopyTimer);
+  $('author-copy-status').textContent='';
   authorDialog.showModal();
   document.body.style.overflow='hidden';
   $('close-author-dialog').focus();
+};
+$('copy-qq').onclick=async()=>{
+  const status=$('author-copy-status');
+  try {
+    await navigator.clipboard.writeText('2675943788');
+    status.textContent='已复制到剪贴板';
+    $('copy-qq').dataset.copied='true';
+    clearTimeout(authorCopyTimer);
+    authorCopyTimer=setTimeout(()=>{status.textContent='';delete $('copy-qq').dataset.copied;},2400);
+  } catch {
+    status.textContent='复制失败，请重试';
+  }
 };
 $('close-author-dialog').onclick=()=>authorDialog.close();
 authorDialog.addEventListener('click',event=>{
@@ -339,7 +354,7 @@ authorDialog.addEventListener('click',event=>{
   const rect=authorDialog.getBoundingClientRect();
   if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)authorDialog.close();
 });
-authorDialog.addEventListener('close',()=>{document.body.style.overflow='';authorTrigger?.focus();});
+authorDialog.addEventListener('close',()=>{clearTimeout(authorCopyTimer);$('author-copy-status').textContent='';delete $('copy-qq').dataset.copied;document.body.style.overflow='';authorTrigger?.focus();});
 const backToTop=$('back-to-top');
 let scrollUpdatePending=false;
 function updateBackToTop() {

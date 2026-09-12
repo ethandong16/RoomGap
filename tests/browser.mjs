@@ -82,14 +82,27 @@ try{
    await c.close();
  });
  await check('author contacts use an icon-only modal and restore focus',async()=>{
+   await desktop.grantPermissions(['clipboard-read','clipboard-write'],{origin:new URL(base).origin});
    const trigger=page.locator('#author-trigger');await trigger.click();
    const dialog=page.locator('#author-dialog');
    assert.equal(await dialog.isVisible(),true);
    assert.equal(await dialog.locator('.author-link').count(),4);
-   assert.deepEqual(await dialog.locator('.author-link').evaluateAll(links=>links.map(link=>link.getAttribute('aria-label'))),['GitHub','X','Email','QQ']);
+   assert.deepEqual(await dialog.locator('.author-link').evaluateAll(links=>links.map(link=>link.getAttribute('aria-label'))),['GitHub','X','Email','复制 QQ 号']);
    assert.doesNotMatch(await dialog.innerText(),/GitHub|Email|QQ|\bX\b/);
+   await dialog.locator('#copy-qq').click();
+   await page.waitForFunction(()=>document.querySelector('#author-copy-status').textContent==='已复制到剪贴板');
+   assert.equal(await dialog.locator('#author-copy-status').textContent(),'已复制到剪贴板');
+   assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),'2675943788');
    await page.keyboard.press('Escape');assert.equal(await dialog.isVisible(),false);
    assert.equal(await trigger.evaluate(element=>element===document.activeElement),true);
+ });
+ await check('bottom helper copy uses consistent typography and spacing',async()=>{
+   const typography=await page.locator('#data-note p, #author-trigger, .footer-disclaimer').evaluateAll(elements=>elements.map(element=>{
+     const style=getComputedStyle(element);return {fontSize:style.fontSize,lineHeight:style.lineHeight};
+   }));
+   assert.equal(new Set(typography.map(style=>style.fontSize)).size,1);
+   assert.equal(new Set(typography.map(style=>style.lineHeight)).size,1);
+   assert.deepEqual(await page.locator('#data-note p + p').evaluateAll(elements=>elements.map(element=>getComputedStyle(element).marginTop)),['4px','4px','4px']);
  });
  await check('known 19-room query and combined filters',async()=>{
    await setPeriods(page,[1,2,3,4]);await ready(page);await date(page,'2026-09-08');await page.locator('#campus').selectOption('04');await count(page,19);
