@@ -14,7 +14,10 @@ const browserOptions={
 if(process.platform==='linux'&&process.getuid?.()===0)browserOptions.args.push('--no-sandbox');
 if(process.env.ROOMGAP_BROWSER_CHANNEL)browserOptions.channel=process.env.ROOMGAP_BROWSER_CHANNEL;
 if(process.env.ROOMGAP_BROWSER_EXECUTABLE)browserOptions.executablePath=process.env.ROOMGAP_BROWSER_EXECUTABLE;
-const context=await chromium.launchPersistentContext(process.env.ROOMGAP_BROWSER_PROFILE||'.roomgap-browser',browserOptions);
+let browser;
+const context=browserOptions.headless
+ ? await (async()=>{browser=await chromium.launch(browserOptions);return browser.newContext();})()
+ : await chromium.launchPersistentContext(process.env.ROOMGAP_BROWSER_PROFILE||'.roomgap-browser',browserOptions);
 const page=context.pages()[0]||await context.newPage();
 page.setDefaultTimeout(30000);
 let manifest,apiContext;
@@ -119,4 +122,4 @@ try {
  console.log('FINISHED',JSON.stringify({complete:manifest.complete,completed:manifest.completedQueries,expected:manifest.expectedQueries,failures:manifest.failures}));
  if(!manifest.complete)process.exitCode=1;
 }catch(e){console.error(e.message);if(manifest){manifest.failures.push({message:e.message});await save('manifest.json',manifest);}process.exitCode=1;}
-finally{await apiContext?.dispose();await context.close();}
+finally{await apiContext?.dispose();await context.close().catch(()=>{});await browser?.close().catch(()=>{});}
