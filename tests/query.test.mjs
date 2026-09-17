@@ -5,11 +5,13 @@ import {selectRooms, validateDay, initialDate, beijingDate, dateInTerm, moveDate
 const load=async p=>JSON.parse(await readFile(new URL(`../data/dataset/${p}`,import.meta.url),'utf8'));
 const [rooms,day,term,schema]=await Promise.all(['rooms.json','days/2026-09-08.json','term.json','schema.json'].map(load));
 
-test('official snapshot: west TEDA 2026-09-08 periods 1–4 has 19 candidates',()=>{
+test('official snapshot: west TEDA only recommends room numbers ending in 09, 10 or 11',()=>{
   validateDay(day,'2026-09-08',rooms,schema.catalogDigest);
   const results=selectRooms(rooms,day,{campus:'04',start:1,end:4});
-  assert.equal(results.length,19);
+  assert.ok(results.length > 0);
   assert.ok(results.some(r=>r.room.id==='04/11/111(d)'));
+  assert.ok(results.every(({room})=>/^\d*(09|10|11)(?:\D|$)/.test(room.roomCode)));
+  assert.ok(results.every(({room})=>!String(room.building).includes('基地')));
   for(let i=1;i<results.length;i++)assert.ok(results[i-1].continuousLength>=results[i].continuousLength);
 });
 test('combined building, name and capacity filters keep only valid matches',()=>{
@@ -39,6 +41,14 @@ test('partial occupancy, unknown periods and non-classroom resources are never r
   ]};
   assert.deepEqual(selectRooms(roster,snapshot,{start:1,end:2}).map(r=>r.room.id),['0']);
   assert.throws(()=>selectRooms(roster,snapshot,{start:4,end:1}));
+});
+test('rooms excluded by access policy are never recommended',()=>{
+  const roster=[
+    {id:'allowed',name:'110',resourceKind:'classroom',candidateEligible:true,campus:'a',campusCode:'01',building:'1',buildingCode:'1'},
+    {id:'locked',name:'112',resourceKind:'classroom',candidateEligible:false,campus:'a',campusCode:'01',building:'1',buildingCode:'1'}
+  ];
+  const snapshot={rooms:[0,1].map(room=>({room,freeMask:8191,occupiedMask:0,unknownMask:0}))};
+  assert.deepEqual(selectRooms(roster,snapshot,{start:1,end:2}).map(r=>r.room.id),['allowed']);
 });
 test('sort by containing interval, then natural classroom number',()=>{
   const roster=['10','2','3'].map(name=>({id:name,name,resourceKind:'classroom',campus:'a',campusCode:'01',building:'1',buildingCode:'1'}));

@@ -1,21 +1,24 @@
 import {readFile,readdir,mkdir,writeFile} from 'node:fs/promises';
 import {roomDay,FULL_DAY_MASK} from './semester-model.mjs';
+import {applyAccessPolicy} from './room-policy.mjs';
 import {createHash} from 'node:crypto';
 const source='data/semester',dest='data/dataset';
 const load=async path=>JSON.parse(await readFile(path,'utf8'));
 const [rooms,buildings,term]=await Promise.all(['rooms','buildings','term'].map(n=>load(`${source}/${n}.json`)));
 const buildingNotes=await load(`${source}/building-notes.json`).catch(()=>[]);
+const accessPolicy=await load(`${source}/access-policy.json`).catch(()=>({}));
 const roomIndex=new Map(rooms.map((r,i)=>[r.id,i]));
 const byBuilding=new Map();
 for(let i=0;i<rooms.length;i++){const r=rooms[i],key=`${r.campusCode}/${r.buildingCode}`;if(!byBuilding.has(key))byBuilding.set(key,[]);byBuilding.get(key).push(i);}
 const types=new Map(term.roomTypes.map(t=>[t.code,t.name]));
-const roster=rooms.map(r=>{
+const classifiedRooms=rooms.map(r=>{
  const b=buildings.find(b=>b.campusCode===r.campusCode&&b.buildingCode===r.buildingCode);
  const note=buildingNotes.find(n=>n.campusCode===r.campusCode&&n.buildingCode===r.buildingCode)?.note||'';
  const text=`${b?.name||''} ${r.name} ${note}`;
  const resourceKind=/虚拟|线上|在线|网络|智慧树|雨课堂|自主学习/.test(text)?'virtual':/运动场|田径场|体育馆|体育场/.test(text)?'sports':/实验|实训|机房|舞蹈|表演|活动中心/.test(text)?'special-purpose':['1','2','17'].includes(r.typeCode)?'classroom':r.typeCode?'special-purpose':'unspecified';
  return {...r,campus:b?.campus||null,building:b?.name||null,type:types.get(r.typeCode)||null,resourceKind};
 });
+const {rooms:roster,unmatchedBuildings}=applyAccessPolicy(classifiedRooms,accessPolicy);
 await mkdir(`${dest}/days`,{recursive:true});
 const rosterJson=JSON.stringify(roster);
 const catalogDigest=createHash('sha256').update(rosterJson).digest('hex');
@@ -57,6 +60,7 @@ for(const date of dates){
 report.orphanRoomIds=[...orphans].sort();report.occupiedRoomDays=occupiedRoomDays;report.firstCapture=firstCapture;report.lastCapture=lastCapture;
 report.complete=report.verifiedBuildingDays===report.expectedBuildingDays&&!report.missing.length;
 report.resourceKinds=roster.reduce((m,r)=>(m[r.resourceKind]=(m[r.resourceKind]||0)+1,m),{});
+report.accessPolicy={version:accessPolicy.version||null,eligibleRooms:roster.filter(r=>r.candidateEligible).length,excludedRooms:roster.filter(r=>!r.candidateEligible).length,unmatchedBuildings};
 await writeFile(`${dest}/coverage.json`,JSON.stringify(report,null,2));
 await writeFile(`${dest}/schema.json`,JSON.stringify({version:1,catalogDigest,periods:13,roomReference:'room字段为rooms.json的零起始数组索引',maskEncoding:'第n节对应1<<(n-1)；13节全为1是8191',intervalEncoding:'freeIntervals为闭区间[startPeriod,endPeriod]',missingData:'未知节次不得当作空闲',timezone:'Asia/Shanghai'},null,2));
 console.log(JSON.stringify({...report,dateCoverage:undefined,missing:report.missing.length,anomalies:report.anomalies.length,orphanRoomIds:report.orphanRoomIds.length}));

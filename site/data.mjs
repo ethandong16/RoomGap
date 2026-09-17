@@ -76,7 +76,7 @@ export async function loadCatalog() {
   for (const room of rooms) {
     if (room.campus === '泰达') room.campus = '泰达中院';
   }
-  const candidates = rooms.filter(r => candidateKinds.has(r.resourceKind));
+  const candidates = rooms.filter(r => r.candidateEligible !== false && candidateKinds.has(r.resourceKind));
   const loader = createDayLoader(date => get(`${base}days/${date}.json`), (day, date) => validateDay(day, date, rooms, hash));
   return {rooms, candidates, term, schema, coverage, loader};
 }

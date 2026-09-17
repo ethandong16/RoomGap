@@ -43,7 +43,7 @@ export function selectRooms(rooms, day, filters) {
   const needle = search.trim().toLocaleLowerCase();
   return day.rooms.flatMap(state => {
     const room = rooms[state.room];
-    if (!room || !candidateKinds.has(room.resourceKind) || (campus && room.campusCode !== campus) || (building && buildingKey(room) !== building)) return [];
+    if (!room || room.candidateEligible === false || !candidateKinds.has(room.resourceKind) || (campus && room.campusCode !== campus) || (building && buildingKey(room) !== building)) return [];
     if (minCapacity > 0 && !(Number.isFinite(room.capacity) && room.capacity >= minCapacity)) return [];
     if (needle && !roomTitle(room).toLocaleLowerCase().includes(needle)) return [];
     // Never let occupied or unknown periods enter an available result, even in malformed input.
