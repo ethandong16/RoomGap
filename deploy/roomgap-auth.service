@@ -1,0 +1,16 @@
+[Unit]
+Description=RoomGap QR authentication coordinator
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/RoomGap
+EnvironmentFile=/root/.config/roomgap.env
+ExecStart=/opt/node20/bin/node /root/RoomGap/auth-daemon.mjs
+Restart=on-failure
+RestartSec=5s
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
