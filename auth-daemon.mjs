@@ -151,7 +151,7 @@ async function notifyQr(qrUrl){
   if(!barkUrl){console.warn('ROOMGAP_BARK_URL is empty; QR notification was not sent');return;}
   const url=new URL(barkUrl);
   url.searchParams.set('title','RoomGap 登录已失效');
-  url.searchParams.set('body','点击通知打开二维码并使用企业微信扫码。二维码约 3 分钟有效；过期后今天不会再次提醒。');
+  url.searchParams.set('body','点击通知打开二维码，保存图片后在个人微信“扫一扫 → 相册”中识别（需已关注学校企业微信）。二维码约 3 分钟有效；过期后今天不会再次提醒。');
   url.searchParams.set('group','RoomGap');
   url.searchParams.set('url',qrUrl);
   url.searchParams.set('copy',qrUrl);
