@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import {applyAccessPolicy} from '../room-policy.mjs';
 
 const policy={
-  campusRules:[{campusCode:'04',allowedRoomNumberSuffixes:['09','10','11'],excludeOthers:true}],
+  campusRules:[],
   excludedBuildingNameIncludes:[{text:'基地',reason:'managed'}]
 };
 
-test('west campus policy treats X09, X10 and X11 as room-number suffixes',()=>{
+test('west campus policy keeps ordinary rooms eligible without a room-number allowlist',()=>{
   const rooms=['109','110(d)','111(d)','209(d)','310(d)','411','112','1阶梯(d)'].map(roomCode=>({campusCode:'04',buildingCode:'10',building:'10-',roomCode,name:roomCode}));
   const result=applyAccessPolicy(rooms,policy).rooms;
-  assert.deepEqual(result.filter(room=>room.candidateEligible).map(room=>room.roomCode),['109','110(d)','111(d)','209(d)','310(d)','411']);
+  assert.deepEqual(result.filter(room=>room.candidateEligible).map(room=>room.roomCode),rooms.map(room=>room.roomCode));
 });
 
 test('managed bases are excluded regardless of campus',()=>{

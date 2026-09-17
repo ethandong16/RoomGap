@@ -5,12 +5,12 @@ import {selectRooms, validateDay, initialDate, beijingDate, dateInTerm, moveDate
 const load=async p=>JSON.parse(await readFile(new URL(`../data/dataset/${p}`,import.meta.url),'utf8'));
 const [rooms,day,term,schema]=await Promise.all(['rooms.json','days/2026-09-08.json','term.json','schema.json'].map(load));
 
-test('official snapshot: west TEDA only recommends room numbers ending in 09, 10 or 11',()=>{
+test('official snapshot: west TEDA recommends ordinary rooms while excluding managed bases',()=>{
   validateDay(day,'2026-09-08',rooms,schema.catalogDigest);
   const results=selectRooms(rooms,day,{campus:'04',start:1,end:4});
   assert.ok(results.length > 0);
   assert.ok(results.some(r=>r.room.id==='04/11/111(d)'));
-  assert.ok(results.every(({room})=>/^\d*(09|10|11)(?:\D|$)/.test(room.roomCode)));
+  assert.ok(results.some(r=>r.room.id==='04/10/203（d）研讨室'));
   assert.ok(results.every(({room})=>!String(room.building).includes('基地')));
   for(let i=1;i<results.length;i++)assert.ok(results[i-1].continuousLength>=results[i].continuousLength);
 });
