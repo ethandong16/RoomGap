@@ -77,7 +77,7 @@ test('protects the summary with the Cloudflare secret', async () => {
     env: {DB: db, ANALYTICS_ADMIN_TOKEN: 'secret-token'}
   });
   assert.equal(response.status, 401);
-  assert.deepEqual(await response.json(), {error: '需要有效的管理令牌'});
+  assert.deepEqual(await response.json(), {error: '需要有效的管理授权'});
   assert.equal(db.batches.length, 0);
 });
 

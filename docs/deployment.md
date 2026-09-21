@@ -34,12 +34,22 @@ node scripts/build-site.mjs
 
    ```bash
    npx wrangler d1 execute roomgap-analytics --remote --file=migrations/0001_analytics.sql
+   npx wrangler d1 execute roomgap-analytics --remote --file=migrations/0002_admin_trusted_devices.sql
    ```
 
    也可以在 D1 控制台的 SQL 栏执行 `migrations/0001_analytics.sql`。不要把本地测试数据库当成生产数据库。
 3. 打开 Pages 项目 **Settings → Functions → D1 database bindings**，新增绑定：变量名填 `DB`，数据库选择刚创建的 `roomgap-analytics`。Production 和 Preview 环境分别确认绑定，避免预览部署误写生产库。
-4. 打开 Pages 项目 **Settings → Environment variables**，在 Production 环境新增类型为 **Secret** 的 `ANALYTICS_ADMIN_TOKEN`。令牌应使用密码管理器生成的长随机值；如需要在 Preview 环境测试，再单独配置 Preview Secret。不要把令牌写入仓库、构建变量或 URL。Cloudflare 保存后不会再次显示 Secret 原文，因此需要自行妥善保存；遗失时直接替换为新值。
-5. 保存设置并重新部署一次。部署完成后访问线上 `/admin.html`，输入 `ANALYTICS_ADMIN_TOKEN` 验证汇总数据。前台 `/api/analytics/events` 返回 `204` 才表示事件已被接受；未配置 D1 时会返回 `503`，不会在本地磁盘留下统计文件。
+4. 打开 Pages 项目 **Settings → Environment variables**，在 Production 环境新增以下 Secret：
+
+   | 变量 | 用途 |
+   | --- | --- |
+   | `ANALYTICS_ADMIN_TOKEN` | 首次验证管理设备。应使用密码管理器生成的长随机值 |
+   | `ROOMGAP_AUTH_TOKEN` | Cloudflare Function 调用采集机 `/status`、`/trigger` 的 Bearer Token |
+
+   另新增普通变量 `ROOMGAP_AUTH_URL`，值为认证服务的 HTTPS 根地址，例如 `https://roomgap-auth.example.com`，末尾不需要 `/`。不要把任何令牌写入仓库、构建变量、前端代码或 URL。
+
+   管理令牌验证成功后，服务端会签发随机的 HttpOnly 设备凭据，D1 只保存凭据哈希和 User-Agent 哈希。凭据 15 天后失效，退出管理台会立即撤销当前设备。浏览器不使用 `localStorage` 或 `sessionStorage` 保存管理令牌。
+5. 保存设置并重新部署一次。部署完成后访问线上 `/admin.html`，输入 `ANALYTICS_ADMIN_TOKEN` 验证设备，确认统计数据与“教务数据更新”控制区都能读取。前台 `/api/analytics/events` 返回 `204` 才表示事件已被接受；未配置 D1 时会返回 `503`，不会在本地磁盘留下统计文件。
 
 修改 Functions 或迁移文件后，都要重新部署 Pages；新增 D1 迁移请使用递增文件名，并在生产数据库执行后再发布依赖该表的代码。D1 绑定和 Secret 属于 Cloudflare 项目设置，不需要写入 `wrangler.toml`。
 

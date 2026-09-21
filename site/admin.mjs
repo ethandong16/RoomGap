@@ -3,11 +3,22 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;',
 const number = value => new Intl.NumberFormat('zh-CN').format(Number(value) || 0);
 const timeFormat = new Intl.DateTimeFormat('zh-CN', {timeZone:'Asia/Shanghai', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hourCycle:'h23'});
 const dateFormat = new Intl.DateTimeFormat('zh-CN', {timeZone:'Asia/Shanghai', month:'2-digit', day:'2-digit'});
-const state = {token:'', days:7};
+const state = {days:7, authenticated:false};
 
 function formatTime(value) { try { return timeFormat.format(new Date(value)); } catch { return '—'; } }
 function formatDay(value) { try { return dateFormat.format(new Date(`${value}T00:00:00+08:00`)); } catch { return value; } }
 function setError(message = '') { $('dashboard-error').textContent = message; $('dashboard-error').hidden = !message; }
+function showLogin(message = '') {
+  state.authenticated = false;
+  $('dashboard').hidden = true;
+  $('auth-panel').hidden = false;
+  $('auth-error').textContent = message;
+}
+function showDashboard() {
+  state.authenticated = true;
+  $('auth-panel').hidden = true;
+  $('dashboard').hidden = false;
+}
 
 function renderMetrics(metrics) {
   $('metric-visits').textContent = number(metrics.visits);
@@ -61,25 +72,57 @@ function renderDashboard(payload) {
 }
 
 async function loadDashboard() {
-  if (!state.token) return;
+  if (!state.authenticated) return;
   setError('');
   $('refresh-button').disabled = true;
   try {
-    const response = await fetch(`/api/analytics/summary?days=${state.days}`, {headers:{'x-roomgap-admin-token':state.token}, cache:'no-store'});
+    const response = await fetch(`/api/analytics/summary?days=${state.days}`, {cache:'no-store'});
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw Error(payload.error || '观测数据加载失败');
     renderDashboard(payload);
-    $('auth-panel').hidden = true;
-    $('dashboard').hidden = false;
   } catch (error) {
-    if (error.message.includes('令牌')) {
-      state.token = '';
-      try { sessionStorage.removeItem('roomgap-admin-token'); } catch {}
-      $('auth-panel').hidden = false;
-      $('dashboard').hidden = true;
-      $('auth-error').textContent = error.message;
-    } else setError(`${error.message}。请确认 Cloudflare Pages 已绑定 D1，并配置 ANALYTICS_ADMIN_TOKEN。`);
+    if (error.message.includes('授权')) showLogin(error.message);
+    else setError(`${error.message}。请确认 Cloudflare Pages 已绑定 D1，并完成管理环境配置。`);
   } finally { $('refresh-button').disabled = false; }
+}
+
+function collectionLabel(status) {
+  return ({idle:'空闲', checking:'检查会话', waiting_for_scan:'等待扫码', establishing_session:'建立会话', collecting:'正在采集', complete:'已完成', expired:'二维码已过期', error:'任务失败'})[status] || '未知';
+}
+
+function renderCollectionStatus(payload) {
+  const status = payload.active ? payload.status : (payload.persisted?.lastResult || payload.status || 'idle');
+  $('collection-status').dataset.status = status;
+  $('collection-status').textContent = collectionLabel(status);
+  $('collection-description').textContent = payload.lastError || payload.persisted?.lastError || (status === 'waiting_for_scan' ? '二维码已通过 Bark 发送，等待扫码' : status === 'collecting' ? '正在刷新全部教室数据' : '可手动生成新的登录二维码');
+  const lastSuccess = payload.persisted?.lastSuccessAt;
+  $('collection-last-success').textContent = lastSuccess ? `上次成功 ${formatTime(lastSuccess)}` : '暂无成功记录';
+  $('collection-trigger').disabled = Boolean(payload.active);
+}
+
+async function loadCollectionStatus() {
+  if (!state.authenticated) return;
+  $('collection-refresh').disabled = true;
+  try {
+    const response = await fetch('/api/admin/collection/status', {cache:'no-store'});
+    const payload = await response.json().catch(() => ({}));
+    if (response.status === 401) return showLogin('设备授权已失效，请重新验证');
+    if (!response.ok) throw Error(payload.error || '采集状态读取失败');
+    renderCollectionStatus(payload);
+  } catch (error) {
+    $('collection-status').dataset.status = 'error';
+    $('collection-status').textContent = '连接失败';
+    $('collection-description').textContent = error.message;
+  } finally { $('collection-refresh').disabled = false; }
+}
+
+async function checkSession() {
+  try {
+    const response = await fetch('/api/admin/session', {cache:'no-store'});
+    if (!response.ok) return showLogin();
+    showDashboard();
+    await Promise.all([loadDashboard(), loadCollectionStatus()]);
+  } catch { showLogin('无法连接管理认证服务'); }
 }
 
 function applyTheme(preference, persist = true) {
@@ -92,14 +135,22 @@ function applyTheme(preference, persist = true) {
   if (persist) try { localStorage.setItem('roomgap-theme', selected); } catch {}
 }
 
-$('auth-form').addEventListener('submit', event => {
+$('auth-form').addEventListener('submit', async event => {
   event.preventDefault();
   const token = $('admin-token').value.trim();
   $('auth-error').textContent = token ? '' : '请输入管理令牌';
   if (!token) return;
-  state.token = token;
-  try { sessionStorage.setItem('roomgap-admin-token', token); } catch {}
-  loadDashboard();
+  const button = event.submitter;
+  if (button) button.disabled = true;
+  try {
+    const response = await fetch('/api/admin/session', {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({token})});
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw Error(payload.error || '设备验证失败');
+    $('admin-token').value = '';
+    showDashboard();
+    await Promise.all([loadDashboard(), loadCollectionStatus()]);
+  } catch (error) { $('auth-error').textContent = error.message; }
+  finally { if (button) button.disabled = false; }
 });
 document.querySelector('.range-picker').addEventListener('click', event => {
   const button = event.target.closest('button[data-days]');
@@ -109,11 +160,21 @@ document.querySelector('.range-picker').addEventListener('click', event => {
   loadDashboard();
 });
 $('refresh-button').addEventListener('click', loadDashboard);
-$('logout-button').addEventListener('click', () => {
-  state.token = '';
-  try { sessionStorage.removeItem('roomgap-admin-token'); } catch {}
-  $('dashboard').hidden = true;
-  $('auth-panel').hidden = false;
+$('collection-refresh').addEventListener('click', loadCollectionStatus);
+$('collection-trigger').addEventListener('click', async () => {
+  if (!confirm('生成新的登录二维码并通过 Bark 推送？二维码约 3 分钟有效。')) return;
+  $('collection-trigger').disabled = true;
+  try {
+    const response = await fetch('/api/admin/collection/trigger', {method:'POST'});
+    const payload = await response.json().catch(() => ({}));
+    if (response.status === 401) return showLogin('设备授权已失效，请重新验证');
+    if (!response.ok) throw Error(payload.error || payload.reason || '二维码触发失败');
+    await loadCollectionStatus();
+  } catch (error) { setError(error.message); $('collection-trigger').disabled = false; }
+});
+$('logout-button').addEventListener('click', async () => {
+  await fetch('/api/admin/session', {method:'DELETE'}).catch(()=>{});
+  showLogin();
   $('admin-token').value = '';
   $('admin-token').focus();
 });
@@ -122,5 +183,4 @@ document.querySelector('.theme-switcher').addEventListener('click', event => {
   if (button) applyTheme(button.dataset.theme);
 });
 applyTheme(document.documentElement.dataset.themePreference || 'system', false);
-try { state.token = sessionStorage.getItem('roomgap-admin-token') || ''; } catch {}
-if (state.token) loadDashboard();
+checkSession();

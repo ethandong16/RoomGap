@@ -1,4 +1,5 @@
-import {authorized, beijingDate, configError, dayKeys, json, rangeForDays} from '../../_analytics.js';
+import {authenticateAdmin} from '../../_admin.js';
+import {beijingDate, configError, dayKeys, json, rangeForDays} from '../../_analytics.js';
 
 function rows(result) { return result?.results || []; }
 function ranked(result, limit = 8) {
@@ -7,7 +8,7 @@ function ranked(result, limit = 8) {
 
 export async function onRequestGet({request, env}) {
   if (!env?.DB || !env?.ANALYTICS_ADMIN_TOKEN) return configError();
-  if (!authorized(request, env)) return json({error: '需要有效的管理令牌'}, 401);
+  if (!(await authenticateAdmin(request, env)).authenticated) return json({error: '需要有效的管理授权'}, 401);
   const days = Number(new URL(request.url).searchParams.get('days') || 7);
   const range = rangeForDays(days);
   const from = range.from.toISOString();

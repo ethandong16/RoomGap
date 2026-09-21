@@ -24,13 +24,18 @@
     <section class="admin-hero"><div><p class="eyebrow">后台 / ANALYTICS</p><h1>使用观测</h1><p class="hero-subtitle">查看 RoomGap 的访问、查询与教室使用偏好。</p></div><span class="live-indicator"><i></i>数据实时写入</span></section>
 
     <section id="auth-panel" class="auth-panel" aria-labelledby="auth-title">
-      <div class="auth-copy"><span class="auth-icon">⌁</span><div><h2 id="auth-title">输入管理令牌</h2><p>令牌由 Cloudflare Pages 的 `ANALYTICS_ADMIN_TOKEN` 配置。</p></div></div>
-      <form id="auth-form"><label for="admin-token">管理令牌</label><div class="token-row"><input id="admin-token" type="password" autocomplete="current-password" placeholder="粘贴管理令牌"><button type="submit">进入观测台</button></div><p id="auth-error" class="form-error" role="alert"></p></form>
+      <div class="auth-copy"><span class="auth-icon">⌁</span><div><h2 id="auth-title">验证管理设备</h2><p>验证一次后，这台设备将在 15 天内免输令牌。</p></div></div>
+      <form id="auth-form"><label for="admin-token">管理令牌</label><div class="token-row"><input id="admin-token" type="password" autocomplete="current-password" placeholder="输入管理令牌"><button type="submit">验证设备</button></div><p id="auth-error" class="form-error" role="alert"></p></form>
     </section>
 
     <section id="dashboard" hidden>
       <div class="dashboard-toolbar"><div class="range-picker" role="group" aria-label="统计时间范围"><span>时间范围</span><button type="button" data-days="1">今天</button><button type="button" data-days="7" aria-pressed="true">近 7 天</button><button type="button" data-days="30">近 30 天</button><button type="button" data-days="90">近 90 天</button></div><div class="toolbar-actions"><span id="last-updated">—</span><button type="button" id="refresh-button" class="refresh-button" title="刷新数据">刷新</button><button type="button" id="logout-button" class="logout-button">退出</button></div></div>
       <div id="dashboard-error" class="dashboard-error" role="alert" hidden></div>
+      <section class="dashboard-panel collection-panel" aria-labelledby="collection-title">
+        <div class="collection-copy"><span class="panel-kicker">采集</span><h2 id="collection-title">教务数据更新</h2><p id="collection-description">正在读取采集机状态</p></div>
+        <div class="collection-state"><span id="collection-status" class="status-badge" data-status="loading">读取中</span><span id="collection-last-success">—</span></div>
+        <div class="collection-actions"><button type="button" id="collection-refresh" class="secondary-button">刷新状态</button><button type="button" id="collection-trigger" class="primary-button">获取登录二维码</button></div>
+      </section>
       <section class="metric-grid" aria-label="核心指标"><article class="metric-card"><span>访问次数</span><strong id="metric-visits">—</strong><small>页面打开次数</small></article><article class="metric-card"><span>匿名会话</span><strong id="metric-sessions">—</strong><small>按浏览器生成的匿名标识</small></article><article class="metric-card"><span>查询次数</span><strong id="metric-queries">—</strong><small>提交过有效节次的查询</small></article><article class="metric-card"><span>详情查看</span><strong id="metric-details">—</strong><small>打开教室全天安排</small></article></section>
 
       <section class="dashboard-grid">
