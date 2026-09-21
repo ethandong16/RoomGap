@@ -62,6 +62,23 @@ function sendJson(res,status,payload){
   res.end(body);
 }
 
+function decodeHtml(value){
+  return value.replaceAll('&amp;','&').replaceAll('&quot;','"').replaceAll('&#39;',"'").replaceAll('&lt;','<').replaceAll('&gt;','>');
+}
+
+function parseQrForm(html){
+  const form=html.match(/<form\b[^>]*id=["']qrLoginForm["'][^>]*>[\s\S]*?<\/form>/i)?.[0];
+  if(!form)throw Error('QR login form was not found');
+  const fields={};
+  for(const match of form.matchAll(/<input\b[^>]*>/gi)){
+    const attributes={};
+    for(const attribute of match[0].matchAll(/([\w:-]+)\s*=\s*(["'])(.*?)\2/g))attributes[attribute[1].toLowerCase()]=decodeHtml(attribute[3]);
+    if(attributes.name)fields[attributes.name]=attributes.value||'';
+  }
+  for(const required of ['cllt','dllt','execution','_eventId','rmShown'])if(!(required in fields))throw Error(`QR login form is missing ${required}`);
+  return fields;
+}
+
 class CookieJar{
   constructor(){this.cookies=[];}
 
@@ -163,13 +180,13 @@ async function createQrSession(){
   const jar=new CookieJar();
   const login=await request(loginUrl,{method:'GET'},jar,0);
   if(login.response.status!==200)throw Error(`CAS login returned HTTP ${login.response.status}`);
-  await login.response.arrayBuffer();
+  const form=parseQrForm(await login.response.text());
   const tokenUrl=`${authBase}/qrCode/getToken?ts=${Date.now()}`;
   const tokenResponse=await request(tokenUrl,{headers:{'x-requested-with':'XMLHttpRequest'}},jar,0);
   if(!tokenResponse.response.ok)throw Error(`QR token returned HTTP ${tokenResponse.response.status}`);
   const uuid=(await tokenResponse.response.text()).trim();
   if(!/^QR-[A-Za-z0-9_-]{10,}$/.test(uuid))throw Error('QR token response was invalid');
-  return {jar,uuid,qrUrl:`${authBase}/qrCode/getCode?uuid=${encodeURIComponent(uuid)}`};
+  return {jar,uuid,form,qrUrl:`${authBase}/qrCode/getCode?uuid=${encodeURIComponent(uuid)}`};
 }
 
 async function waitForQr({jar,uuid}){
@@ -185,12 +202,16 @@ async function waitForQr({jar,uuid}){
   return false;
 }
 
-async function finishQrLogin({jar,uuid}){
-  const body=new URLSearchParams({lt:'',uuid,cllt:'qrLogin',dllt:'generalLogin',execution:'e1s1',_eventId:'submit',rmShown:'1'});
+async function finishQrLogin({jar,uuid,form}){
+  const body=new URLSearchParams({...form,uuid});
   const submitUrl=`${authBase}/login?display=qrLogin&service=${encodeURIComponent(service)}`;
-  const result=await request(submitUrl,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body},jar,10);
+  const result=await request(submitUrl,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded','origin':'https://id.tust.edu.cn','referer':loginUrl},body},jar,10);
   const text=await result.response.text();
-  if(result.response.status!==200||!text.includes('jxlBody'))throw Error(`QR login did not reach the classroom page (HTTP ${result.response.status})`);
+  if(result.response.status!==200){
+    const title=decodeHtml(text.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.replace(/\s+/g,' ').trim()||'unknown');
+    const final=new URL(result.url);
+    throw Error(`QR login ended at ${final.host}${final.pathname} (HTTP ${result.response.status}, title: ${title})`);
+  }
   const cookies=jar.exportFor('jwxtxs.tust.edu.cn');
   if(!cookies.some(cookie=>cookie.name==='JSESSIONID'))throw Error('QR login did not produce JSESSIONID');
   const temporary=`${authFile}.${process.pid}.tmp`;
@@ -203,7 +224,7 @@ async function finishQrLogin({jar,uuid}){
 async function runCollection(){
   return new Promise((resolve,reject)=>{
     const child=spawn('bash',['./run-collect.sh'],{
-      cwd:root,stdio:'inherit',env:{...process.env,ROOMGAP_COOKIES_FILE:authFile,ROOMGAP_REFRESH:'1'},
+      cwd:root,stdio:'inherit',env:{...process.env,HOME:process.env.HOME||os.homedir(),ROOMGAP_COOKIES_FILE:authFile,ROOMGAP_REFRESH:'1'},
     });
     child.once('error',reject);
     child.once('exit',(code,signal)=>code===0?resolve():reject(Error(`collection exited with ${code??signal}`)));

@@ -14,11 +14,22 @@ const browserOptions={
 if(process.platform==='linux'&&process.getuid?.()===0)browserOptions.args.push('--no-sandbox');
 if(process.env.ROOMGAP_BROWSER_CHANNEL)browserOptions.channel=process.env.ROOMGAP_BROWSER_CHANNEL;
 if(process.env.ROOMGAP_BROWSER_EXECUTABLE)browserOptions.executablePath=process.env.ROOMGAP_BROWSER_EXECUTABLE;
-let browser;
-const context=browserOptions.headless
- ? await (async()=>{browser=await chromium.launch(browserOptions);return browser.newContext();})()
- : await chromium.launchPersistentContext(process.env.ROOMGAP_BROWSER_PROFILE||'.roomgap-browser',browserOptions);
-const page=context.pages()[0]||await context.newPage();
+let browser,context,page;
+for(let attempt=1;attempt<=3;attempt++){
+ try{
+  context=browserOptions.headless
+   ? await (async()=>{browser=await chromium.launch(browserOptions);return browser.newContext();})()
+   : await chromium.launchPersistentContext(process.env.ROOMGAP_BROWSER_PROFILE||'.roomgap-browser',browserOptions);
+  page=context.pages()[0]||await context.newPage();
+  break;
+ }catch(error){
+  await context?.close().catch(()=>{});await browser?.close().catch(()=>{});
+  browser=context=page=undefined;
+  if(attempt===3)throw error;
+  console.warn(`Browser initialization failed; retrying (${attempt}/3): ${error.message}`);
+  await delay(1500*attempt);
+ }
+}
 page.setDefaultTimeout(30000);
 let manifest,apiContext;
 const save=async(name,value)=>writeFile(`${out}/${name}`,JSON.stringify(value),'utf8');
