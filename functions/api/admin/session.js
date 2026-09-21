@@ -1,4 +1,4 @@
-import {adminConfigError, adminTokenAuthorized, authenticateAdmin, createTrustedDevice, revokeTrustedDevice} from '../../_admin.js';
+import {adminConfigError, adminTokenAuthorized, authenticateAdmin, createTrustedDevice, ensureAdminSchema, revokeTrustedDevice} from '../../_admin.js';
 import {json} from '../../_analytics.js';
 
 export async function onRequestGet({request, env}) {
@@ -15,6 +15,7 @@ export async function onRequestPost({request, env}) {
   let payload;
   try { payload = await request.json(); } catch { return json({error: '请求体不是有效 JSON'}, 400); }
   if (!adminTokenAuthorized(payload?.token, env)) return json({error: '管理令牌无效'}, 401);
+  await ensureAdminSchema(env);
   await env.DB.prepare('DELETE FROM admin_trusted_devices WHERE expires_at <= ?').bind(new Date().toISOString()).run();
   const device = await createTrustedDevice(request, env);
   return new Response(JSON.stringify({authenticated: true, expiresAt: device.expiresAt}), {status: 201, headers: {

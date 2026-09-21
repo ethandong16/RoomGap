@@ -37,7 +37,7 @@ node scripts/build-site.mjs
    npx wrangler d1 execute roomgap-analytics --remote --file=migrations/0002_admin_trusted_devices.sql
    ```
 
-   也可以在 D1 控制台的 SQL 栏执行 `migrations/0001_analytics.sql`。不要把本地测试数据库当成生产数据库。
+   也可以在 D1 控制台的 SQL 栏执行迁移文件。`0002` 表会在首次成功验证管理令牌时使用 `CREATE TABLE IF NOT EXISTS` 自行补齐，但生产环境仍建议显式执行迁移并保留记录。不要把本地测试数据库当成生产数据库。
 3. 打开 Pages 项目 **Settings → Functions → D1 database bindings**，新增绑定：变量名填 `DB`，数据库选择刚创建的 `roomgap-analytics`。Production 和 Preview 环境分别确认绑定，避免预览部署误写生产库。
 4. 打开 Pages 项目 **Settings → Environment variables**，在 Production 环境新增以下 Secret：
 
