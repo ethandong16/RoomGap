@@ -25,7 +25,10 @@ const summary={
   metrics:{visits:128,sessions:54,queries:96,details:31},
   daily:['15','16','17','18','19','20','21'].map((day,index)=>({date:`2026-09-${day}`,visits:12+index,queries:8+index})),
   popular:{campuses:[{label:'河西',count:48}],buildings:[{label:'主楼',count:32}],periods:[{label:'第 1 节',count:40}],rooms:[{label:'A101',count:12}]},
-  recent:[]
+  recent:[{
+    id:'query-1',timestamp:'2026-09-21T13:40:00.000Z',type:'query',sessionId:'session-query',path:'/',
+    data:{date:'2026-09-18',campus:'河西',building:'主楼',periods:[1,2],resultCount:12}
+  }]
 };
 
 async function verify(viewport,name){
@@ -38,6 +41,7 @@ async function verify(viewport,name){
   await page.locator('#dashboard:not([hidden])').waitFor();
   assert.equal(await page.locator('#collection-status').textContent(),'已完成');
   assert.equal(await page.locator('#collection-trigger').isVisible(),true);
+  assert.match(await page.locator('#recent-events .event-detail').textContent(),/查询日期 2026-09-18/);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   await page.screenshot({path:`artifacts/${name}`,fullPage:true});
   await context.close();

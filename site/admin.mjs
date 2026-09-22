@@ -46,7 +46,7 @@ function renderRankList(id, rows) {
 function eventDescription(event) {
   const data = event.data || {};
   if (event.type === 'page_view') return ['访问首页', '打开查询页面'];
-  if (event.type === 'query') return ['提交查询', `${data.campus || '全部校区'} · ${data.building || '全部教学楼'} · ${(data.periods || []).map(period => `第 ${period} 节`).join('、') || '未选节次'} · ${number(data.resultCount)} 间结果`];
+  if (event.type === 'query') return ['提交查询', `${data.date ? `查询日期 ${data.date}` : '查询日期未知'} · ${data.campus || '全部校区'} · ${data.building || '全部教学楼'} · ${(data.periods || []).map(period => `第 ${period} 节`).join('、') || '未选节次'} · ${number(data.resultCount)} 间结果`];
   if (event.type === 'room_detail') return ['查看详情', `${data.campus || '未知校区'} · ${data.building || '未知教学楼'} · ${data.room || '未知教室'}`];
   if (event.type === 'theme_change') return ['切换主题', data.theme || 'system'];
   return [event.type, ''];
