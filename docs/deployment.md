@@ -127,6 +127,6 @@ git push --dry-run origin main
 ROOMGAP_GIT_PUSH=1
 ```
 
-配合 cron 中的 `ROOMGAP_REFRESH=1`，流程是：刷新 → 构建 → 校验 → 仅提交 `data/semester`、`data/dataset` → 推送 `main` → 托管平台自动构建。脚本会在采集前检查仓库、分支、提交身份和暂存区；不会帮你解决非快进冲突或绕过分支保护。
+cron 直接运行入口即可默认完整刷新，流程是：刷新 → 构建 → 校验 → 仅提交 `data/semester`、`data/dataset` → 推送 `main` → 托管平台自动构建。脚本会在采集前检查仓库、分支、提交身份和暂存区；不会帮你解决非快进冲突或绕过分支保护。
 
 推送失败时数据和本地提交保留，日志标注 `GitHub 推送` 阶段失败。修好网络、认证或分支同步后，可直接 `git push origin main` 重试，无需再抓取。脚本没有接入托管平台部署状态查询，因此 Bark 只确认数据已推送。

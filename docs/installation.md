@@ -71,7 +71,7 @@ install -m 600 deploy/roomgap.env.example "$HOME/.config/roomgap.env"
 1. 确保 Linux 能访问学校教务系统（校园网络或有效 VPN）。
 2. 按 [登录态维护](login.md) 在 PC 登录，并上传 `.roomgap-auth.json`。
 3. 在 Linux 执行 `./run-collect.sh`，先验证登录和已有数据。
-4. 需要更新仓库中的旧快照时执行 `ROOMGAP_REFRESH=1 ./run-collect.sh`。
+4. 执行 `./run-collect.sh` 更新仓库中的旧快照；只有恢复中断任务时才使用 `ROOMGAP_REFRESH=0`。
 5. 首次完整运行成功后，再按 [自动采集](collection.md) 安装 cron。
 
 必须部署完整仓库，包含 `semester-model.mjs`。只复制采集器和构建脚本会缺少依赖。Linux 入口现在会在采集前检查这些文件。

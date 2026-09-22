@@ -21,6 +21,7 @@ async function fixture(t, {missingModel = false, failBuild = false, hold = false
   for (const [file, stage] of [['collect-api.mjs', 'collect'], ['build-dataset.mjs', 'build'], ['verify-dataset.mjs', 'verify']]) {
     await writeFile(path.join(root, file), `import {appendFile, writeFile} from 'node:fs/promises';
 await appendFile('stages.log', '${stage}\\n');
+${stage === 'collect' ? "await writeFile('refresh-mode.log',process.env.ROOMGAP_REFRESH||'unset');" : ''}
 ${stage === 'build' ? "if(process.env.ROOMGAP_GIT_PUSH==='1')await writeFile('data/dataset/rooms.json','[1]\\n');" : ''}
 ${stage === 'collect' && hold ? 'await new Promise(resolve => setTimeout(resolve, 2500));' : ''}
 ${stage === 'build' && failBuild ? 'process.exit(7);' : ''}\n`);
@@ -91,9 +92,18 @@ test('successful run executes each data stage in order despite Bark failure', op
   const result = await f.run();
   assert.equal(result.code, 0, result.output);
   assert.equal(await f.stages(), 'collect\nbuild\nverify\n');
+  assert.equal(await readFile(path.join(f.root, 'refresh-mode.log'), 'utf8'), '1');
   assert.match(result.output, /SUCCESS:/);
   assert.match(result.output, /WARN: Bark notification failed/);
   assert.match(await readFile(path.join(f.root, 'bark.log'), 'utf8'), /RoomGap 采集完成/);
+});
+
+test('resume mode must be selected explicitly', options, async t => {
+  const f = await fixture(t);
+  f.env.ROOMGAP_REFRESH = '0';
+  const result = await f.run();
+  assert.equal(result.code, 0, result.output);
+  assert.equal(await readFile(path.join(f.root, 'refresh-mode.log'), 'utf8'), '0');
 });
 
 test('build failure preserves exit status and skips verification and success notification', options, async t => {

@@ -44,7 +44,7 @@ fi
 if [[ -x /opt/node20/bin/node ]]; then export PATH="/opt/node20/bin:${PATH}"; fi
 command -v node >/dev/null || { echo 'ERROR: Node.js 20+ is required' >&2; exit 1; }
 node -e 'if(Number(process.versions.node.split(".")[0])<20)throw Error("Node.js 20+ is required")'
-for file in collect-api.mjs classroom-page.mjs build-dataset.mjs verify-dataset.mjs semester-model.mjs scripts/check-space.mjs; do
+for file in collect-api.mjs classroom-page.mjs cookie-header.mjs build-dataset.mjs verify-dataset.mjs semester-model.mjs scripts/check-space.mjs; do
   [[ -f "$file" ]] || { echo "ERROR: missing $file; deploy the complete repository" >&2; exit 1; }
   node --check "$file"
 done
@@ -70,7 +70,11 @@ check_publish_repo() {
 }
 if [[ "${ROOMGAP_GIT_PUSH:-0}" == 1 ]]; then check_publish_repo; fi
 
-export ROOMGAP_REFRESH="${ROOMGAP_REFRESH:-0}"
+export ROOMGAP_REFRESH="${ROOMGAP_REFRESH:-1}"
+if [[ "$ROOMGAP_REFRESH" != 0 && "$ROOMGAP_REFRESH" != 1 ]]; then
+  echo 'ERROR: ROOMGAP_REFRESH must be 0 (resume) or 1 (refresh)' >&2
+  exit 1
+fi
 if [[ -z "${ROOMGAP_COOKIES_FILE:-}" && -f .roomgap-auth.json ]]; then
   export ROOMGAP_COOKIES_FILE="$PWD/.roomgap-auth.json"
 fi
@@ -78,8 +82,8 @@ if [[ -n "${ROOMGAP_COOKIES_FILE:-}" && ! -r "$ROOMGAP_COOKIES_FILE" ]]; then
   echo 'ERROR: ROOMGAP_COOKIES_FILE is not readable' >&2
   exit 1
 fi
-mode="断点续采"
-if [[ "$ROOMGAP_REFRESH" == 1 ]]; then mode="完整刷新"; fi
+mode="完整刷新"
+if [[ "$ROOMGAP_REFRESH" == 0 ]]; then mode="断点续采"; fi
 check_space "采集前"
 notify "RoomGap 开始采集" "$(date '+%F %T %Z')，${mode}"
 stage="采集"

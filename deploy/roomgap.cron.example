@@ -4,4 +4,4 @@ SHELL=/bin/bash
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Refresh existing schedules every Sunday at 03:00.
-0 3 * * 0 cd /home/roomgap/RoomGap && ROOMGAP_REFRESH=1 ./run-collect.sh >> /home/roomgap/RoomGap/logs/collect.log 2>&1
+0 3 * * 0 cd /home/roomgap/RoomGap && ./run-collect.sh >> /home/roomgap/RoomGap/logs/collect.log 2>&1

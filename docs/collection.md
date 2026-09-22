@@ -4,23 +4,23 @@
 
 ## 手动执行
 
-在项目目录运行（当前测试机是 `/root/RoomGap`）：
+在项目目录运行（当前测试机是 `/root/RoomGap`）。默认完整刷新，会重新查询全部楼栋日数据，以便纳入最新调课、考试和借用安排：
 
 ```bash
 ./run-collect.sh
 ```
 
-默认断点续采：符合目录和日期校验的现有楼栋日文件会被跳过。**完整的旧快照不会因为再次运行默认命令而刷新。** 更新调课、考试和借用安排需要：
+仅在上一次采集被中断、需要复用已有完整快照时，显式使用断点续采：
 
 ```bash
-ROOMGAP_REFRESH=1 ./run-collect.sh
+ROOMGAP_REFRESH=0 ./run-collect.sh
 ```
 
 要在断开 SSH 后继续执行，可以保存到项目日志目录：
 
 ```bash
 mkdir -p logs
-nohup env ROOMGAP_REFRESH=1 ./run-collect.sh >> logs/collect.log 2>&1 </dev/null &
+nohup ./run-collect.sh >> logs/collect.log 2>&1 </dev/null &
 echo $!
 tail -f logs/collect.log
 ```
@@ -51,7 +51,7 @@ tail -f logs/collect.log
 ```cron
 SHELL=/bin/bash
 PATH=/usr/local/bin:/usr/bin:/bin
-0 3 * * 0 cd /home/roomgap/RoomGap && ROOMGAP_REFRESH=1 ./run-collect.sh >> /home/roomgap/RoomGap/logs/collect.log 2>&1
+0 3 * * 0 cd /home/roomgap/RoomGap && ./run-collect.sh >> /home/roomgap/RoomGap/logs/collect.log 2>&1
 ```
 
 这是服务器本地时间每周日 03:00。用 `date '+%F %T %Z %z'` 检查时区；需要北京时间时由管理员配置 `Asia/Shanghai`。cron 的 PATH 与交互式终端不同，Node 安装在非标准路径时，把完整 PATH 写入配置文件。
@@ -69,7 +69,7 @@ systemctl status cron --no-pager
 0 3 * * 0 cd /root/RoomGap && ./run-collect.sh >> /var/log/roomgap-collect.log 2>&1
 ```
 
-这条旧配置仅断点续采。本次仓库整理没有改变服务器 crontab；要定期刷新已有排课，应在 `crontab -e` 中给该条目添加 `ROOMGAP_REFRESH=1`。
+当前入口默认完整刷新，因此这条配置会更新已有排课。旧版本入口仍需显式添加 `ROOMGAP_REFRESH=1`。
 
 ## Bark 通知
 
@@ -101,13 +101,13 @@ curl -fsS --max-time 10 -G \
 | 变量 | 默认 / 作用 |
 | --- | --- |
 | `ROOMGAP_CONFIG` | 默认 `$XDG_CONFIG_HOME/roomgap.env`，未设 XDG 时为 `$HOME/.config/roomgap.env` |
-| `ROOMGAP_REFRESH` | `0` 复用已有数据；`1` 重新查询全部楼栋日 |
+| `ROOMGAP_REFRESH` | 默认 `1`，重新查询全部楼栋日；设为 `0` 时复用已有完整数据以断点续采 |
 | `ROOMGAP_MIN_FREE_MB` | 默认 `128`，单位 MiB；必须为正整数，空间不足时停止任务 |
 | `ROOMGAP_COOKIES_FILE` | 自动使用项目根目录 `.roomgap-auth.json`（若存在） |
 | `ROOMGAP_BARK_URL` | Bark 设备 URL；不要提交真实 Key |
 | `ROOMGAP_GIT_PUSH` | 默认 `0`；`1` 在校验后提交两个数据目录并推送 `origin/main`，需先完成 [自动发布配置](deployment.md#可选linux-采集后自动推送) |
 
-环境配置会覆盖同名命令行变量；因此示例中不设置 `ROOMGAP_REFRESH`，方便每次选择模式。Windows 入口不读取 Linux 的 Bash 配置文件，也不提供 `flock` 或 Bark；不要同时启动多份 Windows 采集器。
+环境配置会覆盖同名命令行变量；因此示例中不设置 `ROOMGAP_REFRESH`。Windows 入口默认完整刷新，使用 `-Resume` 才会断点续采；它不读取 Linux 的 Bash 配置文件，也不提供 `flock` 或 Bark，不要同时启动多份 Windows 采集器。
 
 ## 换学期
 

@@ -12,7 +12,7 @@
 | 当前测试机定时日志 | `tail -f /var/log/roomgap-collect.log` |
 | 当前测试机手动日志 | `tail -f /var/log/roomgap-collect-manual.log` |
 | 补齐缺失数据 | `./run-collect.sh` |
-| 刷新所有已有排课 | `ROOMGAP_REFRESH=1 ./run-collect.sh` |
+| 刷新所有已有排课 | `./run-collect.sh` |
 | 校验数据 | `node verify-dataset.mjs` |
 | 构建网站 | `node scripts/build-site.mjs` |
 
@@ -41,7 +41,7 @@ node verify-dataset.mjs
 
 先检查日志中 `FAILED` 的原因。无头模式遇到登录页会立即退出并要求更新 Cookie；按 [登录态维护](login.md) 完成后重启任务。
 
-对首次采集留下的缺失文件，使用默认模式补齐即可。若在 `ROOMGAP_REFRESH=1` 刷新期间中断，已有文件可能是新旧时间的混合；默认续采只检查完整性，不会重新查询仍完整的旧文件。要求本轮全量新鲜时，再执行一次完整刷新，并核对 `firstCapture` / `lastCapture`。
+对采集留下的缺失文件，可用 `ROOMGAP_REFRESH=0 ./run-collect.sh` 断点续采。若完整刷新期间中断，已有文件可能是新旧时间的混合；续采只检查完整性，不会重新查询仍完整的旧文件。要求本轮全量新鲜时，再执行一次默认完整刷新，并核对 `firstCapture` / `lastCapture`。
 
 不要在同一目录并行构建、更新代码、导入数据和采集。需要停止后台任务时先确认具体进程号，只终止对应任务；中止后检查进程是否退出，再继续操作。
 

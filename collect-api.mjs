@@ -1,11 +1,13 @@
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import {setTimeout as delay} from 'node:timers/promises';
 import {parseClassroomIndex,parseClassroomSearch} from './classroom-page.mjs';
+import {cookieHeaderForUrl} from './cookie-header.mjs';
 const base='http://jwxtxs.tust.edu.cn:46110';
 const index=base+'/student/teachingResources/classroomUseStatus/index';
 const endpoint=base+'/student/teachingResources/classroomUseStatus/jasInfo';
 const out='data/semester';
 const userAgent='Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36';
+const resume=process.env.ROOMGAP_REFRESH==='0';
 await mkdir(out+'/days',{recursive:true});
 let manifest;
 const save=async(name,value)=>writeFile(`${out}/${name}`,JSON.stringify(value),'utf8');
@@ -13,8 +15,9 @@ const id=r=>[r.campusNumber,r.teachingBuildingNumber,r.classroomNumber].join('/'
 try {
  const cookies=JSON.parse(await readFile(process.env.ROOMGAP_COOKIES_FILE||'.roomgap-auth.json','utf8'));
  if(!Array.isArray(cookies)||!cookies.length)throw Error('Cookie file must contain a non-empty array');
- const cookie=cookies.map(item=>`${item.name}=${item.value}`).join('; ');
  const fetchText=async url=>{
+  const cookie=cookieHeaderForUrl(cookies,url);
+  if(!cookie)throw Error(`No cookies match ${new URL(url).hostname}`);
   const response=await fetch(url,{headers:{cookie,'user-agent':userAgent},redirect:'manual',signal:AbortSignal.timeout(30000)});
   if([301,302,303,307,308].includes(response.status))throw Error('Login expired: scan the QR code again');
   if(!response.ok)throw Error(`GET ${new URL(url).pathname} returned HTTP ${response.status}`);
@@ -35,6 +38,8 @@ try {
  const request=async(f)=>{
   for(let attempt=0;attempt<3;attempt++){
    try {
+    const cookie=cookieHeaderForUrl(cookies,endpoint);
+    if(!cookie)throw Error(`No cookies match ${new URL(endpoint).hostname}`);
     const response=await fetch(endpoint,{method:'POST',headers:{cookie,'content-type':'application/x-www-form-urlencoded;charset=UTF-8',origin:base,referer:requestReferer,'user-agent':userAgent,'x-requested-with':'XMLHttpRequest'},body:new URLSearchParams(f),redirect:'manual',signal:AbortSignal.timeout(30000)});
     if([301,302,303,307,308].includes(response.status))throw Error('Login expired: scan the QR code again');
     if(!response.ok)throw Error(`HTTP ${response.status()}`);
@@ -66,12 +71,12 @@ try {
  const tasks=[];let cached=0;
  for(const b of active)for(const date of dates){
   const file=`days/${b.rowIndex}-${date}.json`;
-  try{const old=JSON.parse(await readFile(`${out}/${file}`,'utf8'));if(process.env.ROOMGAP_REFRESH!=='1'&&old.complete&&old.date===date&&old.campusCode===b.campusCode&&old.buildingCode===b.buildingCode&&old.roomCount===b.roomIds.length){cached++;continue;}}catch{}
+  try{const old=JSON.parse(await readFile(`${out}/${file}`,'utf8'));if(resume&&old.complete&&old.date===date&&old.campusCode===b.campusCode&&old.buildingCode===b.buildingCode&&old.roomCount===b.roomIds.length){cached++;continue;}}catch{}
   tasks.push({b,date,file});
  }
- manifest={complete:false,startedAt:new Date().toISOString(),range:{start:dates[0],end:dates.at(-1)},roomCount:roster.length,buildingsWithRooms:active.length,buildingsWithoutRooms:groups.filter(b=>!b.roomIds.length),expectedQueries:active.length*dates.length,completedQueries:cached,failures:[],source:endpoint};
+ manifest={complete:false,startedAt:new Date().toISOString(),mode:resume?'resume':'refresh',range:{start:dates[0],end:dates.at(-1)},roomCount:roster.length,buildingsWithRooms:active.length,buildingsWithoutRooms:groups.filter(b=>!b.roomIds.length),expectedQueries:active.length*dates.length,completedQueries:cached,reusedQueries:cached,failures:[],source:endpoint};
  await save('manifest.json',manifest);
- console.log(`START ${roster.length} rooms, ${active.length} buildings, ${tasks.length} pending day queries`);
+ console.log(`START ${resume?'resume':'refresh'}: ${roster.length} rooms, ${active.length} buildings, ${tasks.length} pending day queries, ${cached} reused`);
  let cursor=0,stopped=false,nextRequestAt=0;
  const throttle=async()=>{const at=Math.max(Date.now(),nextRequestAt);nextRequestAt=at+100;await delay(Math.max(0,at-Date.now()));};
  const worker=async()=>{
