@@ -106,6 +106,9 @@ curl -fsS --max-time 10 -G \
 | `ROOMGAP_COOKIES_FILE` | 自动使用项目根目录 `.roomgap-auth.json`（若存在） |
 | `ROOMGAP_BARK_URL` | Bark 设备 URL；不要提交真实 Key |
 | `ROOMGAP_GIT_PUSH` | 默认 `0`；`1` 在校验后提交两个数据目录并推送 `origin/main`，需先完成 [自动发布配置](deployment.md#可选linux-采集后自动推送) |
+| `ROOMGAP_GIT_PUSH_ATTEMPTS` | 推送尝试次数，示例配置为 `5` |
+| `ROOMGAP_GIT_PUSH_RETRY_SECONDS` | 首次重试等待秒数，示例为 `15`，之后指数退避，单次最多 300 秒 |
+| `ROOMGAP_GIT_PUSH_ONLY` | 设为 `1` 时只补推本地尚未推送的提交，不执行采集；供独立重试 cron 使用 |
 
 环境配置会覆盖同名命令行变量；因此示例中不设置 `ROOMGAP_REFRESH`。Windows 入口默认完整刷新，使用 `-Resume` 才会断点续采；它不读取 Linux 的 Bash 配置文件，也不提供 `flock` 或 Bark，不要同时启动多份 Windows 采集器。
 

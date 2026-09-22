@@ -33,6 +33,8 @@ ${stage === 'build' && failBuild ? 'process.exit(7);' : ''}\n`);
   Object.assign(env, {
     ROOMGAP_CONFIG: path.join(root, 'config.env'),
     ROOMGAP_MIN_FREE_MB: '1',
+    ROOMGAP_GIT_PUSH_ATTEMPTS: '1',
+    ROOMGAP_GIT_PUSH_RETRY_SECONDS: '0',
     PATH: `${path.join(root, 'bin')}:${env.PATH}`,
   });
   const run = () => new Promise((resolve, reject) => {
@@ -151,6 +153,40 @@ test('automatic publication refuses unrelated staged changes before collection',
   assert.match(result.output, /existing staged changes/);
   await assert.rejects(f.stages(), {code: 'ENOENT'});
   assert.equal(await f.git('diff', '--cached', '--name-only'), 'unrelated.txt');
+});
+
+test('automatic publication retries transient push failures', options, async t => {
+  const f = await publicationFixture(t);
+  f.env.ROOMGAP_GIT_PUSH_ATTEMPTS = '3';
+  f.env.ROOMGAP_GIT_PUSH_RETRY_SECONDS = '0';
+  const hook = path.join(f.remote, 'hooks/pre-receive');
+  await writeFile(hook, `#!/bin/sh
+counter="$0.count"
+attempts=0
+if [ -f "$counter" ]; then attempts=$(cat "$counter"); fi
+attempts=$((attempts+1))
+printf '%s' "$attempts" > "$counter"
+if [ "$attempts" -lt 3 ]; then exit 1; fi
+`, {mode: 0o755});
+  const result = await f.run();
+  assert.equal(result.code, 0, result.output);
+  assert.match(result.output, /Git push attempt 1\/3 failed/);
+  assert.match(result.output, /Git push attempt 2\/3 failed/);
+  assert.equal(await readFile(`${hook}.count`, 'utf8'), '3');
+  assert.equal(await f.git('rev-parse', 'HEAD'), await f.git('--git-dir', f.remote, 'rev-parse', 'main'));
+});
+
+test('push-only mode publishes a pending commit without collecting again', options, async t => {
+  const f = await publicationFixture(t);
+  await writeFile(path.join(f.root, 'data/dataset/rooms.json'), '[2]\n');
+  await f.git('add', 'data/dataset/rooms.json');
+  await f.git('commit', '-m', 'Pending collected data');
+  f.env.ROOMGAP_GIT_PUSH_ONLY = '1';
+  const result = await f.run();
+  assert.equal(result.code, 0, result.output);
+  assert.match(result.output, /SUCCESS: pushed 1 pending commit/);
+  await assert.rejects(f.stages(), {code: 'ENOENT'});
+  assert.equal(await f.git('rev-parse', 'HEAD'), await f.git('--git-dir', f.remote, 'rev-parse', 'main'));
 });
 
 test('a failed push can be retried even when no new data diff exists', options, async t => {

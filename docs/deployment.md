@@ -121,12 +121,40 @@ git config user.email '你的 GitHub 提交邮箱'
 git push --dry-run origin main
 ```
 
-服务器使用仅供该仓库的推送凭据，例如具有写权限的 SSH deploy key；在 GitHub 仓库配置相应公钥，私钥仅留服务器并核对 GitHub 主机指纹。不要把令牌放进远程 URL 或配置示例。dry-run 应无需密码询问且成功，之后在 `~/.config/roomgap.env` 加入：
+服务器使用仅供该仓库的写入 Deploy Key，不使用账号密码、PAT 或第三方 GitHub 镜像。GitHub 官方支持通过 `ssh.github.com:443` 建立 SSH 连接，适合普通 SSH 22 端口或 HTTPS Git 传输不稳定的网络。参考 [GitHub SSH over 443](https://docs.github.com/en/authentication/troubleshooting-ssh/using-ssh-over-the-https-port) 和 [Deploy Key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys#deploy-keys)。
+
+在采集机生成仓库专用密钥：
+
+```bash
+install -d -m 700 /root/.ssh
+ssh-keygen -t ed25519 -f /root/.ssh/roomgap_github_ed25519 -C roomgap-collector
+cat /root/.ssh/roomgap_github_ed25519.pub
+```
+
+把公钥添加到 GitHub 仓库 **Settings → Deploy keys**，只为该仓库启用写权限。私钥仅保留在采集机。若 `/root/.ssh/config` 不存在，可直接安装模板；已有配置时只合并模板中的 `Host github.com` 段，不要覆盖其他主机配置：
+
+```bash
+install -m 600 deploy/github-ssh-config.example /root/.ssh/config
+```
+
+首次连接时，对照 GitHub 官方公布的主机指纹确认后保存主机密钥，再切换远端并测试：
+
+```bash
+ssh -T git@github.com
+git remote set-url origin git@github.com:ethandong16/RoomGap.git
+git push --dry-run origin main
+```
+
+GitHub 的 SSH 测试成功时仍可能返回非零状态，以终端中的认证成功提示为准。不要关闭主机密钥检查，也不要把令牌放进远程 URL。dry-run 应无需密码询问且成功。示例环境文件已启用推送和有界重试：
 
 ```bash
 ROOMGAP_GIT_PUSH=1
+ROOMGAP_GIT_PUSH_ATTEMPTS=5
+ROOMGAP_GIT_PUSH_RETRY_SECONDS=15
 ```
 
-cron 直接运行入口即可默认完整刷新，流程是：刷新 → 构建 → 校验 → 仅提交 `data/semester`、`data/dataset` → 推送 `main` → 托管平台自动构建。脚本会在采集前检查仓库、分支、提交身份和暂存区；不会帮你解决非快进冲突或绕过分支保护。
+cron 直接运行入口即可默认完整刷新，流程是：刷新 → 构建 → 校验 → 仅提交 `data/semester`、`data/dataset` → 推送 `main` → 托管平台自动构建。推送失败时默认按 15、30、60、120 秒等待后重试，共尝试 5 次。脚本会在采集前检查仓库、分支、提交身份和暂存区；不会帮你解决认证错误、非快进冲突或绕过分支保护。
 
-推送失败时数据和本地提交保留，日志标注 `GitHub 推送` 阶段失败。修好网络、认证或分支同步后，可直接 `git push origin main` 重试，无需再抓取。脚本没有接入托管平台部署状态查询，因此 Bark 只确认数据已推送。
+推送最终失败时数据和本地提交保留，日志标注 `GitHub 推送` 阶段失败。示例 cron 每 30 分钟执行一次 `ROOMGAP_GIT_PUSH_ONLY=1 ./run-collect.sh`；它只补推 `origin/main..HEAD` 中的提交，不会重新抓取 10080 份数据。脚本没有接入托管平台部署状态查询，因此 Bark 只确认数据已推送。
+
+如果运营商连 `ssh.github.com:443` 也长期阻断，重试无法解决持续性路由故障。此时应使用你控制的境外 VPS 作为最小权限中继：采集机只把已提交的 Git 仓库推到中继，中继再用独立 Deploy Key 推送 GitHub。不要使用公开加速站、共享代理或来路不明的镜像传输写入凭据。

@@ -68,7 +68,46 @@ check_publish_repo() {
   git var GIT_AUTHOR_IDENT >/dev/null
   git diff --cached --quiet || { echo 'ERROR: commit or unstage existing staged changes before automatic publication' >&2; exit 1; }
 }
+push_with_retry() {
+  local attempts="${ROOMGAP_GIT_PUSH_ATTEMPTS:-5}"
+  local delay_seconds="${ROOMGAP_GIT_PUSH_RETRY_SECONDS:-15}"
+  [[ "$attempts" =~ ^[1-9][0-9]*$ ]] || { echo 'ERROR: ROOMGAP_GIT_PUSH_ATTEMPTS must be a positive integer' >&2; return 1; }
+  [[ "$delay_seconds" =~ ^[0-9]+$ ]] || { echo 'ERROR: ROOMGAP_GIT_PUSH_RETRY_SECONDS must be a non-negative integer' >&2; return 1; }
+  local attempt=1 output
+  while true; do
+    if output=$(GIT_TERMINAL_PROMPT=0 git push origin main 2>&1); then
+      [[ -n "$output" ]] && echo "$output"
+      return 0
+    fi
+    echo "$output" >&2
+    if (( attempt >= attempts )); then
+      failure_detail="Git push failed after ${attempts} attempts."
+      return 1
+    fi
+    echo "WARN: Git push attempt ${attempt}/${attempts} failed; retrying in ${delay_seconds} seconds" >&2
+    sleep "$delay_seconds"
+    attempt=$((attempt+1))
+    if (( delay_seconds > 0 && delay_seconds < 300 )); then
+      delay_seconds=$((delay_seconds*2))
+      (( delay_seconds > 300 )) && delay_seconds=300
+    fi
+  done
+}
 if [[ "${ROOMGAP_GIT_PUSH:-0}" == 1 ]]; then check_publish_repo; fi
+
+if [[ "${ROOMGAP_GIT_PUSH_ONLY:-0}" == 1 ]]; then
+  [[ "${ROOMGAP_GIT_PUSH:-0}" == 1 ]] || { echo 'ERROR: ROOMGAP_GIT_PUSH_ONLY requires ROOMGAP_GIT_PUSH=1' >&2; exit 1; }
+  pending=$(git rev-list --count origin/main..HEAD)
+  if [[ "$pending" == 0 ]]; then
+    echo 'SKIPPED: no unpushed commits'
+    exit 0
+  fi
+  stage="GitHub 补推"
+  push_with_retry
+  notify "RoomGap 数据已补推" "此前未推送的数据已同步到 GitHub。"
+  echo "SUCCESS: pushed ${pending} pending commit(s)"
+  exit 0
+fi
 
 export ROOMGAP_REFRESH="${ROOMGAP_REFRESH:-1}"
 if [[ "$ROOMGAP_REFRESH" != 0 && "$ROOMGAP_REFRESH" != 1 ]]; then
@@ -101,8 +140,8 @@ if [[ "${ROOMGAP_GIT_PUSH:-0}" == "1" ]]; then
   if ! git diff --cached --quiet; then
     git commit --only -m "Update collected classroom data" -- data/semester data/dataset
   fi
-  # Retry a previously committed but unpushed snapshot even when this run has no diff.
-  GIT_TERMINAL_PROMPT=0 git push origin main
+  # This also retries a previously committed but unpushed snapshot when there is no new diff.
+  push_with_retry
   notify "RoomGap 数据已推送" "数据已同步到 GitHub；网站是否发布成功请查看托管平台状态。"
 fi
 echo 'SUCCESS: collection, dataset build and verification completed'

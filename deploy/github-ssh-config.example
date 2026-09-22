@@ -1,0 +1,13 @@
+Host github.com
+    HostName ssh.github.com
+    Port 443
+    User git
+    IdentityFile /root/.ssh/roomgap_github_ed25519
+    IdentitiesOnly yes
+    BatchMode yes
+    ConnectTimeout 20
+    ConnectionAttempts 3
+    ServerAliveInterval 15
+    ServerAliveCountMax 3
+    TCPKeepAlive yes
+    StrictHostKeyChecking yes

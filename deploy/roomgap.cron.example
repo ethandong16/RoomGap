@@ -5,3 +5,6 @@ PATH=/usr/local/bin:/usr/bin:/bin
 
 # Refresh existing schedules every Sunday at 03:00.
 0 3 * * 0 cd /home/roomgap/RoomGap && ./run-collect.sh >> /home/roomgap/RoomGap/logs/collect.log 2>&1
+
+# Retry a commit left behind by a transient GitHub outage without recollecting.
+*/30 * * * * cd /home/roomgap/RoomGap && ROOMGAP_GIT_PUSH_ONLY=1 ./run-collect.sh >> /home/roomgap/RoomGap/logs/push.log 2>&1
