@@ -2,8 +2,9 @@
 # Use "su root root" and /var/log/roomgap-collect*.log for the existing root install.
 /home/roomgap/RoomGap/logs/*.log {
   su roomgap roomgap
-  weekly
-  rotate 4
+  daily
+  maxsize 1M
+  rotate 3
   compress
   delaycompress
   missingok

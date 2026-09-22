@@ -53,9 +53,41 @@ free -h
 du -sh data node_modules dist .roomgap-browser logs 2>/dev/null
 ```
 
-2026-09-11 检查时，测试机根分区剩余约 49 MB。出现 `ENOSPC` 时先处理空间；不要删除原始快照、浏览器配置或 Cookie 来碰运气。可以清理确认过的传输临时包、过期日志和可重建的 `dist`，对外托管使用中的目录须先确认。
+2026-09-22 将服务器采集改为直接 HTTP 后，测试机不再需要 Chromium。卸载 Chromium 及仅由它引入的图形依赖、清理 8 MiB 归档日志和未运行的可再下载 Cursor 远程缓存后，3.3 GB 根分区的可用空间从 178 MiB 增至约 800 MiB，使用率从 95% 降至 75%。Avahi/mDNS 被明确保留，`openstick.lan` 不受影响。
 
-按实际账号和日志路径修改 [logrotate 示例](../deploy/roomgap.logrotate.example)，由管理员安装到 `/etc/logrotate.d/roomgap`。先用 `logrotate -d /etc/logrotate.d/roomgap` 检查配置。它每周轮转、保留 4 份压缩日志，`copytruncate` 适合仍在写入的后台脚本，但轮转瞬间可能丢少量日志。
+APT 查询不会再写回两个大型二进制缓存。完整采集仍需以 `manifest.json`、覆盖校验和最终 `SUCCESS` 为准。原服务器采集入口备份在 `/root/.local/share/roomgap-backups/run-collect.YKWmvs.sh`；新增的系统配置可按下述文件路径检查和撤销，恢复 journald 策略后需重启该服务。已按保留策略清理的历史系统日志无法恢复；Cursor 远程缓存可在下次使用时自动下载。
+
+当前小磁盘方案分三层：
+
+1. [APT 配置](../deploy/roomgap-apt-cache.conf) 禁止持久化二进制索引缓存，并关闭安装包保留；软件源列表和已安装软件保留。`apt-get clean` 只清理下载缓存。
+2. [journald 配置](../deploy/roomgap-journald.conf) 将系统日志目标占用设为 16 MiB、单文件 4 MiB、最长 7 天。它是全机日志策略，清理的旧日志无法恢复。
+3. 采集入口在采集、构建、Git 推送前检查至少 128 MiB 可用空间；低于阈值时退出并通过 Bark 报告容量。可单独运行 `node scripts/check-space.mjs` 检查，不访问学校或推送数据。
+
+采集日志单独维护：测试机未安装 logrotate，使用无额外依赖的 `scripts/rotate-logs.mjs`，每小时检查两个采集日志，达到 1 MiB 时压缩轮转，每个保留最近 3 份。配置参考 [小时任务](../deploy/roomgap-log-maintenance.cron.example)，安装到 `/etc/cron.d/roomgap-log-maintenance`。这只是日志维护任务，不会额外触发采集。
+
+常规服务器也可使用 [logrotate 示例](../deploy/roomgap.logrotate.example)：每天检查，超过 1 MiB 可提前轮转，保留 3 份。两种方法选一种，避免重复轮转。两者均采用复制后截断，适合仍持有文件描述符的后台脚本；轮转瞬间可能丢少量新增日志，小时检查也不是日志体积的严格实时上限。
+
+管理员在完整 checkout 中安装系统配置的示例（先备份已有同名文件）：
+
+```bash
+install -d -m 755 /etc/systemd/journald.conf.d
+install -m 644 deploy/roomgap-apt-cache.conf /etc/apt/apt.conf.d/99roomgap-small-disk
+install -m 644 deploy/roomgap-journald.conf /etc/systemd/journald.conf.d/zz-roomgap-storage.conf
+# 按实际用户、Node 与项目路径编辑小时任务后，再安装。
+install -m 644 deploy/roomgap-log-maintenance.cron.example /etc/cron.d/roomgap-log-maintenance
+systemctl restart systemd-journald
+journalctl --rotate
+journalctl --vacuum-size=16M --vacuum-time=7d
+journalctl --disk-usage
+```
+
+手动验证项目日志维护（小日志不会改变）：
+
+```bash
+flock -n .roomgap-logrotate.lock node scripts/rotate-logs.mjs /var/log/roomgap-collect.log /var/log/roomgap-collect-manual.log
+```
+
+网站构建保留在 PC、GitHub CI 或 Cloudflare，采集机只保留当前学期的原始数据和查询数据，不积攒压缩包与多份 `dist`。需要长期历史时在有足够空间的维护机备份，避免在小设备上自动保存无限版本。
 
 ## 备份与升级
 

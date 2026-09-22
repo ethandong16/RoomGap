@@ -1,81 +1,48 @@
-import {pathToFileURL} from 'node:url';
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import {setTimeout as delay} from 'node:timers/promises';
+import {parseClassroomIndex,parseClassroomSearch} from './classroom-page.mjs';
 const base='http://jwxtxs.tust.edu.cn:46110';
 const index=base+'/student/teachingResources/classroomUseStatus/index';
 const endpoint=base+'/student/teachingResources/classroomUseStatus/jasInfo';
 const out='data/semester';
-const {chromium,request:playwrightRequest}=await import(process.env.ROOMGAP_PLAYWRIGHT_MODULE ? pathToFileURL(process.env.ROOMGAP_PLAYWRIGHT_MODULE).href : 'playwright');
+const userAgent='Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36';
 await mkdir(out+'/days',{recursive:true});
-const browserOptions={
-  headless:process.env.ROOMGAP_HEADLESS==='1',
-  args:['--window-position=80,80','--window-size=1200,850','--disable-dev-shm-usage','--disable-gpu']
-};
-if(process.platform==='linux'&&process.getuid?.()===0)browserOptions.args.push('--no-sandbox');
-if(process.env.ROOMGAP_BROWSER_CHANNEL)browserOptions.channel=process.env.ROOMGAP_BROWSER_CHANNEL;
-if(process.env.ROOMGAP_BROWSER_EXECUTABLE)browserOptions.executablePath=process.env.ROOMGAP_BROWSER_EXECUTABLE;
-let browser,context,page;
-for(let attempt=1;attempt<=3;attempt++){
- try{
-  context=browserOptions.headless
-   ? await (async()=>{browser=await chromium.launch(browserOptions);return browser.newContext();})()
-   : await chromium.launchPersistentContext(process.env.ROOMGAP_BROWSER_PROFILE||'.roomgap-browser',browserOptions);
-  page=context.pages()[0]||await context.newPage();
-  break;
- }catch(error){
-  await context?.close().catch(()=>{});await browser?.close().catch(()=>{});
-  browser=context=page=undefined;
-  if(attempt===3)throw error;
-  console.warn(`Browser initialization failed; retrying (${attempt}/3): ${error.message}`);
-  await delay(1500*attempt);
- }
-}
-page.setDefaultTimeout(30000);
-let manifest,apiContext;
+let manifest;
 const save=async(name,value)=>writeFile(`${out}/${name}`,JSON.stringify(value),'utf8');
 const id=r=>[r.campusNumber,r.teachingBuildingNumber,r.classroomNumber].join('/');
 try {
- if(process.env.ROOMGAP_COOKIES_FILE){
-  const cookies=JSON.parse(await readFile(process.env.ROOMGAP_COOKIES_FILE,'utf8'));
-  if(!Array.isArray(cookies))throw Error('Cookie file must contain an array');
-  await context.addCookies(cookies);
+ const cookies=JSON.parse(await readFile(process.env.ROOMGAP_COOKIES_FILE||'.roomgap-auth.json','utf8'));
+ if(!Array.isArray(cookies)||!cookies.length)throw Error('Cookie file must contain a non-empty array');
+ const cookie=cookies.map(item=>`${item.name}=${item.value}`).join('; ');
+ const fetchText=async url=>{
+  const response=await fetch(url,{headers:{cookie,'user-agent':userAgent},redirect:'manual',signal:AbortSignal.timeout(30000)});
+  if([301,302,303,307,308].includes(response.status))throw Error('Login expired: scan the QR code again');
+  if(!response.ok)throw Error(`GET ${new URL(url).pathname} returned HTTP ${response.status}`);
+  return response.text();
+ };
+ const indexPage=await fetchText(index);
+ let parsedIndex;
+ try{parsedIndex=parseClassroomIndex(indexPage);}catch(error){
+  if(/authserver|qrLoginForm|统一身份认证/.test(indexPage))throw Error('Login expired: scan the QR code again');
+  throw error;
  }
- await page.goto(index,{waitUntil:'domcontentloaded',timeout:30000});
- if(browserOptions.headless&&!await page.locator('#jxlBody').isVisible())throw Error('Login expired: refresh .roomgap-auth.json using the login bridge');
- if(!await page.locator('#jxlBody').isVisible())console.log('LOGIN_WAIT: 请在Chrome登录并进入教室使用状况查询；检测到目录后自动继续。');
- const loginDeadline=Date.now()+600000;
- while(!await page.locator('#jxlBody').isVisible()){
-  if(page.isClosed()||Date.now()>loginDeadline)throw Error('Login not completed');
-  await page.locator('#jxlBody').waitFor({state:'visible',timeout:30000}).catch(()=>{});
- }
- const notes=JSON.parse(await page.locator('#jxlList').inputValue());
- await save('building-notes.json',notes.map(b=>({campusCode:b.id.campusNumber,buildingCode:b.id.teachingBuildingNumber,name:b.teachingBuildingName,note:b.remark})));
- const buildings=await page.locator('#jxlBody').evaluate(el=>{
-  let campus='';
-  return [...el.querySelectorAll('tr')].map((r,rowIndex)=>{
-   const c=[...r.cells];if(c.length===4)campus=c[1].innerText.trim();
-   const b=r.querySelector('button');if(!b){if(c.length>1)campus=c[1].innerText.trim();return {campus,rowIndex,queryable:false};}
-   const match=b.getAttribute('onclick')?.match(/location\s*=\s*["']([^"']+)/);
-   if(!match)throw Error('Unrecognized building button');
-   const path=match[1];const parts=path.split('/');
-   return {rowIndex,campus,name:c[c.length-2].innerText.trim(),campusCode:decodeURIComponent(parts[4]),buildingCode:decodeURIComponent(parts[5]),path,queryable:true};
-  });
- });
+ const {notes,buildings}=parsedIndex;
+ await save('building-notes.json',notes);
  const firstBuilding=buildings.find(b=>b.queryable);
  if(!firstBuilding)throw Error('No queryable buildings found');
- await page.goto(base+firstBuilding.path,{waitUntil:'domcontentloaded',timeout:30000});
- const form=await page.locator('#searchCondition').evaluate(el=>Object.fromEntries(new FormData(el)));
- const roomTypes=JSON.parse(await page.locator('#classroomTypes').inputValue());
- const sections=JSON.parse(await page.locator('#section').inputValue());
- const requestReferer=page.url();
- const browserUserAgent=await page.evaluate(()=>navigator.userAgent);
- apiContext=await playwrightRequest.newContext({storageState:{cookies:await context.cookies(),origins:[]},extraHTTPHeaders:{Referer:requestReferer,Origin:base,'User-Agent':browserUserAgent}});
+ const requestReferer=new URL(firstBuilding.path,base).href;
+ const {form,roomTypes,sections}=parseClassroomSearch(await fetchText(requestReferer));
  const request=async(f)=>{
   for(let attempt=0;attempt<3;attempt++){
-   let response;
-   try {response=await apiContext.post(endpoint,{form:f,timeout:30000});if(!response.ok())throw Error(`HTTP ${response.status()}`);const d=await response.json();if(!Array.isArray(d.classrooms)||!Array.isArray(d.classroomTime)||!d.jhZxjxjhb)throw Error('Invalid data or login expired');return d;}
+   try {
+    const response=await fetch(endpoint,{method:'POST',headers:{cookie,'content-type':'application/x-www-form-urlencoded;charset=UTF-8',origin:base,referer:requestReferer,'user-agent':userAgent,'x-requested-with':'XMLHttpRequest'},body:new URLSearchParams(f),redirect:'manual',signal:AbortSignal.timeout(30000)});
+    if([301,302,303,307,308].includes(response.status))throw Error('Login expired: scan the QR code again');
+    if(!response.ok)throw Error(`HTTP ${response.status()}`);
+    const d=await response.json();
+    if(!Array.isArray(d.classrooms)||!Array.isArray(d.classroomTime)||!d.jhZxjxjhb)throw Error('Invalid data or login expired');
+    return d;
+   }
    catch(e){if(attempt===2)throw e;await delay(1000*(attempt+1));}
-   finally {await response?.dispose();}
   }
  };
  const catalog=await request({...form,xqh:'',jxlh:'',searchDate:'2026-08-31'});
@@ -96,7 +63,6 @@ try {
  await save('rooms.json',roster);
  await save('buildings.json',buildings.map(b=>({...b,roomCount:groups.find(g=>g.rowIndex===b.rowIndex)?.roomIds.length||0})));
  await save('term.json',{id:term.zxjxjhh,startDate:dates[0],endDate:dates.at(-1),weeks:20,daysPerWeek:Number(term.codeXqb.zts),source:'official_query_response',periodsPerDay:sections[0].tjc,sections,roomTypes:roomTypes.map(t=>({code:t.classroomtypecode,name:t.classroomtypename})),sectionTypes:catalog.sectionType.map(s=>({code:s.jclxdm,name:s.jclxmc,multiplier:s.jcxss})),examMappings:catalog.codeJclxdzb.map(x=>x.id),termSeason:term.xqdm,termType:term.xqlxdm});
- await context.close();
  const tasks=[];let cached=0;
  for(const b of active)for(const date of dates){
   const file=`days/${b.rowIndex}-${date}.json`;
@@ -133,4 +99,3 @@ try {
  console.log('FINISHED',JSON.stringify({complete:manifest.complete,completed:manifest.completedQueries,expected:manifest.expectedQueries,failures:manifest.failures}));
  if(!manifest.complete)process.exitCode=1;
 }catch(e){console.error(e.message);if(manifest){manifest.failures.push({message:e.message});await save('manifest.json',manifest);}process.exitCode=1;}
-finally{await apiContext?.dispose();await context.close().catch(()=>{});await browser?.close().catch(()=>{});}

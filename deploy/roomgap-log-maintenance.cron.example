@@ -1,0 +1,6 @@
+# /etc/cron.d entry for the existing root installation; adjust account and paths.
+# Uses the existing Node runtime and flock; logrotate package is not required.
+# Check hourly, rotate at 1 MiB, retain three gzip files per log.
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+17 * * * * root flock -n /root/RoomGap/.roomgap-logrotate.lock /opt/node20/bin/node /root/RoomGap/scripts/rotate-logs.mjs /var/log/roomgap-collect.log /var/log/roomgap-collect-manual.log

@@ -29,14 +29,16 @@ tail -f logs/collect.log
 
 ## 运行过程与成功条件
 
-1. 读取配置、检查 Node / Playwright / 构建依赖，获取任务锁。
-2. Chromium 打开目录与表单，加载登录 Cookie。
-3. 独立的 Playwright 请求会话抓取逐楼逐日数据，关闭浏览器以减轻负担；并发 3，请求启动间隔约 100 ms，单请求超时 30 秒，最多尝试 3 次。
+1. 读取配置、检查 Node / 构建依赖，获取任务锁。
+2. 使用登录 Cookie 直接通过 HTTP 读取教学楼目录、查询表单和元数据；登录失效时停止并要求重新扫码。
+3. HTTP 会话抓取逐楼逐日数据；并发 3，请求启动间隔约 100 ms，单请求超时 30 秒，最多尝试 3 次。
 4. `build-dataset.mjs` 调用 `semester-model.mjs` 计算节次状态。
 5. `verify-dataset.mjs` 验证覆盖、目录摘要及未知状态。
 6. 若设置 `ROOMGAP_GIT_PUSH=1`，提交数据并推送 GitHub；全部成功后输出 `SUCCESS`。
 
 `FINISHED {"complete":true,...}` 只说明第 3 步完成，后面的构建或校验仍可能失败。最终以退出码 0、`"verified":true` 和 `SUCCESS` 为准。
+
+采集、数据构建、可选 Git 推送前会检查可用空间，默认至少 **128 MiB**（`ROOMGAP_MIN_FREE_MB`）。不足时退出，日志和 Bark 失败通知带有 `DISK_LOW`、当前容量和阈值；不会为了继续运行而删除原始数据。该检查在阶段边界执行，不会阻止其他程序在运行中占用磁盘。
 
 脚本输出 `data/semester/manifest.json` 和 `data/dataset/coverage.json`；没有 `data/dataset/manifest.json`。运行失败时保留已完成的查询文件，便于排查和恢复。
 
@@ -99,13 +101,9 @@ curl -fsS --max-time 10 -G \
 | 变量 | 默认 / 作用 |
 | --- | --- |
 | `ROOMGAP_CONFIG` | 默认 `$XDG_CONFIG_HOME/roomgap.env`，未设 XDG 时为 `$HOME/.config/roomgap.env` |
-| `ROOMGAP_HEADLESS` | Linux 入口默认 `1`；`0` 需有图形桌面 |
 | `ROOMGAP_REFRESH` | `0` 复用已有数据；`1` 重新查询全部楼栋日 |
+| `ROOMGAP_MIN_FREE_MB` | 默认 `128`，单位 MiB；必须为正整数，空间不足时停止任务 |
 | `ROOMGAP_COOKIES_FILE` | 自动使用项目根目录 `.roomgap-auth.json`（若存在） |
-| `ROOMGAP_BROWSER_PROFILE` | 入口默认项目根目录 `.roomgap-browser`，必须独占 |
-| `ROOMGAP_BROWSER_EXECUTABLE` | 浏览器完整路径；未设置时尝试系统浏览器 |
-| `ROOMGAP_BROWSER_CHANNEL` | 可选 Playwright 通道，如 `chrome` |
-| `ROOMGAP_PLAYWRIGHT_MODULE` | 高级选项：已有 Playwright 的 `index.mjs` 绝对路径；通常用 `npm ci` 即可 |
 | `ROOMGAP_BARK_URL` | Bark 设备 URL；不要提交真实 Key |
 | `ROOMGAP_GIT_PUSH` | 默认 `0`；`1` 在校验后提交两个数据目录并推送 `origin/main`，需先完成 [自动发布配置](deployment.md#可选linux-采集后自动推送) |
 

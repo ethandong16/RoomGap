@@ -1,6 +1,15 @@
 {
   "version": 1,
-  "campusRules": [],
+  "campusRules": [
+    {
+      "campusCode": "04",
+      "campusLabel": "泰达西院",
+      "allowedRoomNumberSuffixes": ["09", "10", "11"],
+      "allowedRoomNote": "现场建议保留各楼层尾号 09、10、11 的教室。",
+      "excludeOthers": true,
+      "excludeReason": "西院其他房间可能有其他用途或带锁，暂不作为普通候选。"
+    }
+  ],
   "excludedBuildings": [
     {
       "campusCode": "04",

@@ -22,11 +22,12 @@ notify() {
 }
 
 stage="依赖检查"
+failure_detail=""
 on_exit() {
   local code=$?
   if [[ $code -ne 0 ]]; then
     echo "ERROR: ${stage} failed (exit ${code})" >&2
-    notify "RoomGap 任务失败" "阶段：${stage}；退出码 ${code}。请查看本次运行日志。"
+    notify "RoomGap 任务失败" "阶段：${stage}；退出码 ${code}。${failure_detail} 请查看本次运行日志。"
   fi
 }
 trap on_exit EXIT
@@ -43,11 +44,21 @@ fi
 if [[ -x /opt/node20/bin/node ]]; then export PATH="/opt/node20/bin:${PATH}"; fi
 command -v node >/dev/null || { echo 'ERROR: Node.js 20+ is required' >&2; exit 1; }
 node -e 'if(Number(process.versions.node.split(".")[0])<20)throw Error("Node.js 20+ is required")'
-for file in collect-api.mjs build-dataset.mjs verify-dataset.mjs semester-model.mjs; do
+for file in collect-api.mjs classroom-page.mjs build-dataset.mjs verify-dataset.mjs semester-model.mjs scripts/check-space.mjs; do
   [[ -f "$file" ]] || { echo "ERROR: missing $file; deploy the complete repository" >&2; exit 1; }
   node --check "$file"
 done
-node --input-type=module -e 'import {pathToFileURL} from "node:url"; await import(process.env.ROOMGAP_PLAYWRIGHT_MODULE ? pathToFileURL(process.env.ROOMGAP_PLAYWRIGHT_MODULE).href : "playwright")'
+check_space() {
+  stage="磁盘空间检查（$1）"
+  local result
+  if result=$(node scripts/check-space.mjs 2>&1); then
+    echo "$result"
+  else
+    failure_detail="$result"
+    echo "$result" >&2
+    return 1
+  fi
+}
 
 check_publish_repo() {
   command -v git >/dev/null || { echo 'ERROR: git is required for automatic publication' >&2; exit 1; }
@@ -59,9 +70,7 @@ check_publish_repo() {
 }
 if [[ "${ROOMGAP_GIT_PUSH:-0}" == 1 ]]; then check_publish_repo; fi
 
-export ROOMGAP_HEADLESS="${ROOMGAP_HEADLESS:-1}"
 export ROOMGAP_REFRESH="${ROOMGAP_REFRESH:-0}"
-export ROOMGAP_BROWSER_PROFILE="${ROOMGAP_BROWSER_PROFILE:-$PWD/.roomgap-browser}"
 if [[ -z "${ROOMGAP_COOKIES_FILE:-}" && -f .roomgap-auth.json ]]; then
   export ROOMGAP_COOKIES_FILE="$PWD/.roomgap-auth.json"
 fi
@@ -69,28 +78,19 @@ if [[ -n "${ROOMGAP_COOKIES_FILE:-}" && ! -r "$ROOMGAP_COOKIES_FILE" ]]; then
   echo 'ERROR: ROOMGAP_COOKIES_FILE is not readable' >&2
   exit 1
 fi
-if [[ -n "${ROOMGAP_BROWSER_EXECUTABLE:-}" ]]; then
-  [[ -x "$ROOMGAP_BROWSER_EXECUTABLE" ]] || { echo 'ERROR: browser executable not found' >&2; exit 1; }
-  export ROOMGAP_BROWSER_EXECUTABLE
-elif [[ -z "${ROOMGAP_BROWSER_CHANNEL:-}" ]]; then
-  for browser in chromium chromium-browser google-chrome; do
-    if command -v "$browser" >/dev/null; then
-      export ROOMGAP_BROWSER_EXECUTABLE="$(command -v "$browser")"
-      break
-    fi
-  done
-fi
-
 mode="断点续采"
 if [[ "$ROOMGAP_REFRESH" == 1 ]]; then mode="完整刷新"; fi
+check_space "采集前"
 notify "RoomGap 开始采集" "$(date '+%F %T %Z')，${mode}"
 stage="采集"
 node collect-api.mjs
+check_space "构建前"
 stage="数据构建"
 node build-dataset.mjs
 stage="完整性校验"
 node verify-dataset.mjs
 if [[ "${ROOMGAP_GIT_PUSH:-0}" == "1" ]]; then
+  check_space "Git 推送前"
   stage="GitHub 推送"
   check_publish_repo
   git add -- data/semester data/dataset

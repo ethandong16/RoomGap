@@ -13,8 +13,10 @@ async function fixture(t, {missingModel = false, failBuild = false, hold = false
   const root = await mkdtemp(path.join(tmpdir(), 'roomgap-runner-test-'));
   t.after(() => rm(root, {recursive: true, force: true}));
   await copyFile(new URL('../run-collect.sh', import.meta.url), path.join(root, 'run-collect.sh'));
+  await mkdir(path.join(root, 'scripts'));
+  await copyFile(new URL('../scripts/check-space.mjs', import.meta.url), path.join(root, 'scripts/check-space.mjs'));
   await writeFile(path.join(root, 'config.env'), bark ? "ROOMGAP_BARK_URL='https://example.invalid/device'\n" : '');
-  await writeFile(path.join(root, 'playwright.mjs'), 'export {};\n');
+  await writeFile(path.join(root, 'classroom-page.mjs'), 'export {};\n');
   if (!missingModel) await writeFile(path.join(root, 'semester-model.mjs'), 'export {};\n');
   for (const [file, stage] of [['collect-api.mjs', 'collect'], ['build-dataset.mjs', 'build'], ['verify-dataset.mjs', 'verify']]) {
     await writeFile(path.join(root, file), `import {appendFile, writeFile} from 'node:fs/promises';
@@ -29,7 +31,7 @@ ${stage === 'build' && failBuild ? 'process.exit(7);' : ''}\n`);
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('ROOMGAP_')));
   Object.assign(env, {
     ROOMGAP_CONFIG: path.join(root, 'config.env'),
-    ROOMGAP_PLAYWRIGHT_MODULE: path.join(root, 'playwright.mjs'),
+    ROOMGAP_MIN_FREE_MB: '1',
     PATH: `${path.join(root, 'bin')}:${env.PATH}`,
   });
   const run = () => new Promise((resolve, reject) => {
@@ -70,6 +72,18 @@ test('missing shared model fails before contacting the school', options, async t
   assert.equal(result.code, 1);
   assert.match(result.output, /missing semester-model.mjs/);
   await assert.rejects(f.stages(), {code: 'ENOENT'});
+});
+
+test('low disk space blocks collection and includes capacity in the failure notification', options, async t => {
+  const f = await fixture(t, {bark: true});
+  f.env.ROOMGAP_MIN_FREE_MB = '1000000000';
+  const result = await f.run();
+  assert.equal(result.code, 1, result.output);
+  assert.match(result.output, /DISK_LOW/);
+  await assert.rejects(f.stages(), {code: 'ENOENT'});
+  const notifications = await readFile(path.join(f.root, 'bark.log'), 'utf8');
+  assert.match(notifications, /DISK_LOW/);
+  assert.doesNotMatch(notifications, /RoomGap 开始采集|RoomGap 采集完成/);
 });
 
 test('successful run executes each data stage in order despite Bark failure', options, async t => {

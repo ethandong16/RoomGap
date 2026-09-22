@@ -9,7 +9,7 @@
 - 手机与桌面布局、深浅主题、键盘操作、容量和名称筛选。
 - 支持连续或不连续节次；未知数据不计为空闲。
 - 按日期加载数据，使用目录摘要和版本目录避免新旧数据混用。
-- Chromium / Playwright 获取查询参数与会话，随后通过接口完成逐楼逐日采集。
+- 二维码登录保存学校会话，采集器随后直接通过 HTTP 获取表单并完成逐楼逐日查询。
 - Linux 无头采集、断点恢复、任务互斥和可选 Bark 通知。
 
 ## 快速开始
@@ -42,6 +42,8 @@ node scripts/serve-site.mjs
 | 手动刷新、cron、Bark、参数 | [Linux 自动采集](docs/collection.md) |
 | PC 登录并通过 SSH 更新 Linux Cookie | [登录态维护](docs/login.md) |
 | 日志、故障恢复、磁盘、备份 | [维护手册](docs/maintenance.md) |
+| 校内宣传、发布文案、14 天执行表 | [宣传包](docs/promotion.md) |
+| 朋友圈宣传文案与配图 | [朋友圈素材](docs/moments-promotion.md) |
 | 字段、节次掩码、数据复核 | [数据格式](docs/data-format.md) |
 | 开发与验证 | [贡献指南](CONTRIBUTING.md) |
 
