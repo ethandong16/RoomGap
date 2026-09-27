@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f4f5f2">
+  <meta name="theme-color" content="#f4f6f5">
   <meta name="color-scheme" content="light dark">
   <title>RoomGap · 使用观测</title>
   <script>
-    (()=>{let p='system';try{const s=localStorage.getItem('roomgap-theme');if(['system','light','dark'].includes(s))p=s;}catch{};const t=p==='system'&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':p==='dark'?'dark':'light';document.documentElement.dataset.theme=t;document.documentElement.dataset.themePreference=p;document.querySelector('meta[name="theme-color"]').content=t==='dark'?'#111613':'#f4f5f2';})();
+    (()=>{let p='system';try{const s=localStorage.getItem('roomgap-theme');if(['system','light','dark'].includes(s))p=s;}catch{};const t=p==='system'&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':p==='dark'?'dark':'light';document.documentElement.dataset.theme=t;document.documentElement.dataset.themePreference=p;document.querySelector('meta[name="theme-color"]').content=t==='dark'?'#090b0d':'#f4f6f5';})();
   </script>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
   <link rel="stylesheet" href="./admin.css">

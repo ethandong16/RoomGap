@@ -46,7 +46,7 @@ function applyTheme(preference,{persist=true}={}) {
   const theme=themePreference==='system'?(themeMedia.matches?'dark':'light'):themePreference;
   document.documentElement.dataset.theme=theme;
   document.documentElement.dataset.themePreference=themePreference;
-  document.querySelector('meta[name="theme-color"]').content=theme==='dark'?'#111613':'#f4f5f2';
+  document.querySelector('meta[name="theme-color"]').content=theme==='dark'?'#090b0d':'#f4f6f5';
   document.querySelectorAll('.theme-option').forEach(button=>{
     const selected=button.dataset.theme===themePreference;
     button.setAttribute('aria-checked',String(selected));

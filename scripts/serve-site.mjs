@@ -12,7 +12,7 @@ export async function startServer({port=4173,root=fileURLToPath(new URL('../dist
       const pathname=decodeURIComponent(new URL(req.url,'http://localhost').pathname);
       if(pathname.includes('\\')||pathname.includes('\0')){res.writeHead(400).end();return;}
       if(!['GET','HEAD'].includes(req.method)){res.writeHead(405,{'Allow':'GET, HEAD'}).end();return;}
-      if(/^\/admin(?:\.(?:html|mjs|css))?$/.test(pathname)){res.writeHead(404).end();return;}
+      if(!process.env.ROOMGAP_PREVIEW_ADMIN&&/^\/admin(?:\.(?:html|mjs|css))?$/.test(pathname)){res.writeHead(404).end();return;}
       const staticPath=pathname;
       const target=path.resolve(dist,'.'+staticPath+(staticPath.endsWith('/')?'index.html':''));
       if(!target.startsWith(dist+path.sep)){res.writeHead(404).end();return;}

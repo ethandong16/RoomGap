@@ -132,6 +132,7 @@ function applyTheme(preference, persist = true) {
   document.documentElement.dataset.theme = theme;
   document.documentElement.dataset.themePreference = selected;
   document.querySelectorAll('.theme-switcher button').forEach(button => button.setAttribute('aria-checked', String(button.dataset.theme === selected)));
+  document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#090b0d' : '#f4f6f5';
   if (persist) try { localStorage.setItem('roomgap-theme', selected); } catch {}
 }
 
