@@ -145,6 +145,26 @@ test('automatic publication commits only data and pushes to a local bare reposit
   assert.equal(await f.git('rev-parse', 'HEAD'), await f.git('--git-dir', f.remote, 'rev-parse', 'main'));
 });
 
+test('automatic publication rebases a data commit when origin advances first', options, async t => {
+  const f = await publicationFixture(t);
+  const other = await mkdtemp(path.join(tmpdir(), 'roomgap-remote-'));
+  t.after(() => rm(other, {recursive: true, force: true}));
+  await execute('git', ['clone', '--branch', 'main', f.remote, other]);
+  const remoteGit = async (...args) => (await execute('git', args, {cwd: other})).stdout.trim();
+  await remoteGit('config', 'user.name', 'Remote Writer');
+  await remoteGit('config', 'user.email', 'remote@example.invalid');
+  await writeFile(path.join(other, 'remote-note.txt'), 'remote moved first\n');
+  await remoteGit('add', 'remote-note.txt');
+  await remoteGit('commit', '-m', 'Remote change before collection');
+  await remoteGit('push', 'origin', 'main');
+
+  const result = await f.run();
+  assert.equal(result.code, 0, result.output);
+  assert.equal(await f.git('rev-parse', 'HEAD'), await f.git('--git-dir', f.remote, 'rev-parse', 'main'));
+  assert.equal(await readFile(path.join(f.root, 'remote-note.txt'), 'utf8'), 'remote moved first\n');
+  assert.deepEqual(await f.git('log', '-2', '--format=%s'), 'Update collected classroom data\nRemote change before collection');
+});
+
 test('automatic publication refuses unrelated staged changes before collection', options, async t => {
   const f = await publicationFixture(t);
   await writeFile(path.join(f.root, 'unrelated.txt'), 'do not publish\n');

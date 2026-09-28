@@ -68,12 +68,48 @@ check_publish_repo() {
   git var GIT_AUTHOR_IDENT >/dev/null
   git diff --cached --quiet || { echo 'ERROR: commit or unstage existing staged changes before automatic publication' >&2; exit 1; }
 }
+sync_publish_repo() {
+  local output
+  if ! output=$(GIT_TERMINAL_PROMPT=0 git fetch --prune origin main 2>&1); then
+    echo "$output" >&2
+    failure_detail="Git fetch failed before GitHub push."
+    return 1
+  fi
+  [[ -n "$output" ]] && echo "$output"
+
+  if git merge-base --is-ancestor origin/main HEAD; then
+    return 0
+  fi
+  if git merge-base --is-ancestor HEAD origin/main; then
+    if ! output=$(git merge --ff-only origin/main 2>&1); then
+      echo "$output" >&2
+      failure_detail="Fast-forwarding the checkout to origin/main failed before GitHub push."
+      return 1
+    fi
+    [[ -n "$output" ]] && echo "$output"
+    return 0
+  fi
+
+  if ! git diff --quiet || ! git diff --cached --quiet; then
+    echo 'ERROR: checkout has uncommitted changes; refusing to rebase before GitHub push' >&2
+    failure_detail="Commit or discard working-tree changes before GitHub push."
+    return 1
+  fi
+  if output=$(GIT_TERMINAL_PROMPT=0 git rebase origin/main 2>&1); then
+    [[ -n "$output" ]] && echo "$output"
+    return 0
+  fi
+  echo "$output" >&2
+  GIT_TERMINAL_PROMPT=0 git rebase --abort >/dev/null 2>&1 || true
+  failure_detail="Git rebase failed before GitHub push; resolve the conflicting files and retry."
+  return 1
+}
 push_with_retry() {
   local attempts="${ROOMGAP_GIT_PUSH_ATTEMPTS:-5}"
   local delay_seconds="${ROOMGAP_GIT_PUSH_RETRY_SECONDS:-15}"
   [[ "$attempts" =~ ^[1-9][0-9]*$ ]] || { echo 'ERROR: ROOMGAP_GIT_PUSH_ATTEMPTS must be a positive integer' >&2; return 1; }
   [[ "$delay_seconds" =~ ^[0-9]+$ ]] || { echo 'ERROR: ROOMGAP_GIT_PUSH_RETRY_SECONDS must be a non-negative integer' >&2; return 1; }
-  local attempt=1 output
+  local attempt=1 output sync_output
   while true; do
     if output=$(GIT_TERMINAL_PROMPT=0 git push origin main 2>&1); then
       [[ -n "$output" ]] && echo "$output"
@@ -83,6 +119,11 @@ push_with_retry() {
     if (( attempt >= attempts )); then
       failure_detail="Git push failed after ${attempts} attempts."
       return 1
+    fi
+    if ! sync_output=$(sync_publish_repo 2>&1); then
+      echo "$sync_output" >&2
+    elif [[ -n "$sync_output" ]]; then
+      echo "$sync_output"
     fi
     echo "WARN: Git push attempt ${attempt}/${attempts} failed; retrying in ${delay_seconds} seconds" >&2
     sleep "$delay_seconds"
@@ -97,6 +138,7 @@ if [[ "${ROOMGAP_GIT_PUSH:-0}" == 1 ]]; then check_publish_repo; fi
 
 if [[ "${ROOMGAP_GIT_PUSH_ONLY:-0}" == 1 ]]; then
   [[ "${ROOMGAP_GIT_PUSH:-0}" == 1 ]] || { echo 'ERROR: ROOMGAP_GIT_PUSH_ONLY requires ROOMGAP_GIT_PUSH=1' >&2; exit 1; }
+  sync_publish_repo
   pending=$(git rev-list --count origin/main..HEAD)
   if [[ "$pending" == 0 ]]; then
     echo 'SKIPPED: no unpushed commits'
@@ -141,6 +183,7 @@ if [[ "${ROOMGAP_GIT_PUSH:-0}" == "1" ]]; then
     git commit --only -m "Update collected classroom data" -- data/semester data/dataset
   fi
   # This also retries a previously committed but unpushed snapshot when there is no new diff.
+  sync_publish_repo
   push_with_retry
   notify "RoomGap 数据已推送" "数据已同步到 GitHub；网站是否发布成功请查看托管平台状态。"
 fi
