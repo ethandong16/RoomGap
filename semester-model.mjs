@@ -28,8 +28,12 @@ export function roomDay(occupancies, term) {
       start=Math.min(...matches);
     }else start=(r.start-1)*Number(type.multiplier)+1;
     const end=start-1+r.length*Number(type.multiplier);
-    if(!Number.isInteger(start)||!Number.isInteger(end)||start<1||end>13){unknownMask=FULL_DAY_MASK;anomalies.push('out_of_range');}
-    const mask=intervalMask(start,end);
+    const validRange=Number.isInteger(start)&&Number.isInteger(end)&&start>=1&&start<=13&&end>=start;
+    // The official classroom grid paints mapped exam ranges only onto existing
+    // period cells. A final-period exam can extend past period 13 after applying
+    // its multiplier; keep all in-day occupancy without making the day unknown.
+    if(!validRange||(end>13&&r.sessionType!=='02')){unknownMask=FULL_DAY_MASK;anomalies.push('out_of_range');}
+    const mask=validRange?intervalMask(start,end):0;
     const category=modules[r.module]||'other';
     categories[category]=(categories[category]||0)|mask;
     occupiedMask|=mask;
