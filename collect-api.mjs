@@ -42,7 +42,7 @@ try {
     if(!cookie)throw Error(`No cookies match ${new URL(endpoint).hostname}`);
     const response=await fetch(endpoint,{method:'POST',headers:{cookie,'content-type':'application/x-www-form-urlencoded;charset=UTF-8',origin:base,referer:requestReferer,'user-agent':userAgent,'x-requested-with':'XMLHttpRequest'},body:new URLSearchParams(f),redirect:'manual',signal:AbortSignal.timeout(30000)});
     if([301,302,303,307,308].includes(response.status))throw Error('Login expired: scan the QR code again');
-    if(!response.ok)throw Error(`HTTP ${response.status()}`);
+    if(!response.ok)throw Error(`HTTP ${response.status}`);
     const d=await response.json();
     if(!Array.isArray(d.classrooms)||!Array.isArray(d.classroomTime)||!d.jhZxjxjhb)throw Error('Invalid data or login expired');
     return d;

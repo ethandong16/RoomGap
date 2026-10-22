@@ -164,16 +164,19 @@ async function validateSession(){
   }catch{return false;}
 }
 
-async function notifyQr(qrUrl){
-  if(!barkUrl){console.warn('ROOMGAP_BARK_URL is empty; QR notification was not sent');return;}
+async function notify(title,body,extra={}){
+  if(!barkUrl){console.warn('ROOMGAP_BARK_URL is empty; notification was not sent');return;}
   const url=new URL(barkUrl);
-  url.searchParams.set('title','RoomGap 登录已失效');
-  url.searchParams.set('body','点击通知打开二维码，保存图片后在个人微信“扫一扫 → 相册”中识别（需已关注学校企业微信）。二维码约 3 分钟有效；过期后今天不会再次提醒。');
+  url.searchParams.set('title',title);
+  url.searchParams.set('body',body);
   url.searchParams.set('group','RoomGap');
-  url.searchParams.set('url',qrUrl);
-  url.searchParams.set('copy',qrUrl);
+  for(const [key,value] of Object.entries(extra))url.searchParams.set(key,value);
   const response=await fetch(url,{signal:AbortSignal.timeout(10000)});
   if(!response.ok)throw Error(`Bark returned HTTP ${response.status}`);
+}
+
+async function notifyQr(qrUrl){
+  await notify('RoomGap 登录已失效','点击通知打开二维码，保存图片后在个人微信“扫一扫 → 相册”中识别（需已关注学校企业微信）。二维码约 3 分钟有效；过期后今天不会再次提醒。',{url:qrUrl,copy:qrUrl});
 }
 
 async function createQrSession(){
@@ -263,9 +266,17 @@ async function workflow(source,forceQr){
     await saveState({lastSuccessAt:new Date().toISOString(),lastResult:'complete'});
     console.log('[auth] authentication and collection completed');
   }catch(error){
+    // run-collect.sh sends its own failure notification; only report the stages before it runs.
+    const failedStage=runtime.status;
     runtime.status='error';runtime.lastError=error.message;
     await saveState({lastResult:'error',lastError:error.message});
     console.error(error);
+    if(failedStage!=='collecting'){
+      const stageName={checking:'检查登录状态',waiting_for_scan:'等待扫码',establishing_session:'换取教室会话'}[failedStage]||failedStage;
+      const label=source==='scheduled'?'定时':'手动';
+      try{await notify('RoomGap 采集失败',`${label}任务在「${stageName}」阶段失败：${error.message}。数据未更新，请检查教务系统可用性或重新扫码。`);}
+      catch(notifyError){console.error(`Bark failure notification failed: ${notifyError.message}`);}
+    }
   }finally{
     runtime.active=false;runtime.finishedAt=new Date().toISOString();
   }
