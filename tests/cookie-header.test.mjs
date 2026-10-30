@@ -9,7 +9,7 @@ test('sends only cookies matching the request domain',()=>{
     {name:'JSESSIONID',value:'classroom',domain:'jwxtxs.tust.edu.cn',path:'/',expires:-1},
     {name:'route',value:'classroom-route',domain:'jwxtxs.tust.edu.cn',path:'/',expires:-1},
   ];
-  assert.equal(cookieHeaderForUrl(cookies,'http://jwxtxs.tust.edu.cn:46110/student/teachingResources/classroomUseStatus/index'),'JSESSIONID=classroom; route=classroom-route');
+  assert.equal(cookieHeaderForUrl(cookies,'https://jwxtxs.tust.edu.cn/student/teachingResources/classroomUseStatus/index'),'JSESSIONID=classroom; route=classroom-route');
 });
 
 test('honors cookie path, secure flag and expiration',()=>{

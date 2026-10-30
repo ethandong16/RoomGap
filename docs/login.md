@@ -76,7 +76,7 @@ Start-Process -FilePath $chrome -ArgumentList @(
   '--remote-debugging-address=127.0.0.1',
   '--remote-debugging-port=9222',
   '--new-window',
-  'http://jwxtxs.tust.edu.cn:46110/student/teachingResources/classroomUseStatus/index'
+  'https://jwxtxs.tust.edu.cn/student/teachingResources/classroomUseStatus/index'
 )
 $env:ROOMGAP_CDP_URL = 'http://127.0.0.1:9222'
 node login-bridge.mjs

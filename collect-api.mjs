@@ -2,7 +2,7 @@ import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import {setTimeout as delay} from 'node:timers/promises';
 import {parseClassroomIndex,parseClassroomSearch} from './classroom-page.mjs';
 import {cookieHeaderForUrl} from './cookie-header.mjs';
-const base='http://jwxtxs.tust.edu.cn:46110';
+const base='https://jwxtxs.tust.edu.cn';
 const index=base+'/student/teachingResources/classroomUseStatus/index';
 const endpoint=base+'/student/teachingResources/classroomUseStatus/jasInfo';
 const out='data/semester';

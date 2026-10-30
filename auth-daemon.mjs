@@ -16,10 +16,11 @@ const apiToken=process.env.ROOMGAP_AUTH_TOKEN||'';
 const barkUrl=process.env.ROOMGAP_BARK_URL||'';
 const timeoutMs=Number(process.env.ROOMGAP_QR_TIMEOUT_MS||180000);
 const pollMs=Number(process.env.ROOMGAP_QR_POLL_MS||1500);
-const service='http://jwxtxs.tust.edu.cn:46110/j_spring_cas_security_check';
+const classroomBase='https://jwxtxs.tust.edu.cn';
+const service=`${classroomBase}/j_spring_cas_security_check`;
 const authBase='https://id.tust.edu.cn/authserver';
 const loginUrl=`${authBase}/login?service=${encodeURIComponent(service)}`;
-const classroomUrl='http://jwxtxs.tust.edu.cn:46110/student/teachingResources/classroomUseStatus/index';
+const classroomUrl=`${classroomBase}/student/teachingResources/classroomUseStatus/index`;
 const userAgent='Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36';
 
 if(!apiToken)throw Error('ROOMGAP_AUTH_TOKEN is required');

@@ -11,7 +11,7 @@ if(process.env.ROOMGAP_BROWSER_EXECUTABLE)browserOptions.executablePath=process.
 const browser=process.env.ROOMGAP_CDP_URL ? await chromium.connectOverCDP(process.env.ROOMGAP_CDP_URL) : null;
 const context=browser?.contexts()[0]||await chromium.launchPersistentContext('.roomgap-login-browser',browserOptions);
 const page=context.pages()[0]||await context.newPage();
-await page.goto('http://jwxtxs.tust.edu.cn:46110/student/teachingResources/classroomUseStatus/index',{waitUntil:'domcontentloaded'});
+await page.goto('https://jwxtxs.tust.edu.cn/student/teachingResources/classroomUseStatus/index',{waitUntil:'domcontentloaded'});
 console.log('请在打开的浏览器窗口中完成学校登录，并进入教室使用状况查询页面。');
 const rl=readline.createInterface({input,output});
 try {
