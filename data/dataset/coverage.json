@@ -713,7 +713,7 @@
   ],
   "weekdayMismatches": 0,
   "weekMaskMismatches": 0,
-  "generatedAt": "2026-10-30T19:17:19.358Z",
+  "generatedAt": "2026-10-30T19:22:46.652Z",
   "occupiedRoomDays": 23296,
   "firstCapture": "2026-10-30T18:50:37.637Z",
   "lastCapture": "2026-10-30T19:08:21.762Z",
@@ -725,9 +725,9 @@
     "unspecified": 88
   },
   "accessPolicy": {
-    "version": 1,
-    "eligibleRooms": 641,
-    "excludedRooms": 90,
+    "version": 2,
+    "eligibleRooms": 640,
+    "excludedRooms": 91,
     "unmatchedBuildings": []
   }
 }
