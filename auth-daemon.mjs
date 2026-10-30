@@ -353,7 +353,7 @@ const server=http.createServer(async(req,res)=>{
     const url=new URL(req.url,'http://localhost');
     if(req.method==='GET'&&url.pathname==='/health')return sendJson(res,200,{ok:true,active:runtime.active});
     if(!authorized(req))return sendJson(res,401,{error:'unauthorized'});
-    if(req.method==='GET'&&url.pathname==='/status')return sendJson(res,200,{...runtime,persisted:await loadState()});
+    if(req.method==='GET'&&url.pathname==='/status')return sendJson(res,200,{...runtime,persisted:await loadState(),smsLoginEnabled,qrFallback});
     if(req.method==='POST'&&url.pathname==='/trigger'){
       const result=await trigger('manual',url.searchParams.get('qr')==='1');
       return sendJson(res,result.accepted?202:409,result);
