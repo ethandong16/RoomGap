@@ -13,7 +13,17 @@ ROOMGAP_SMS_API_URL='http://100.77.133.18:8787/api/sms/recent'
 ROOMGAP_SMS_API_TOKEN_FILE='/root/.config/box-sms-api.json'
 ```
 
-`box-sms-api.json` 是 box-5b15 短信接口的配置（含 `token`），复制到采集机后同样设为 600。认证服务通过额外的 `EnvironmentFile` 读取该文件。
+`box-sms-api.json` 是 box-5b15 短信接口的配置（含 `token`），复制到采集机后同样设为 600。认证服务通过额外的 `EnvironmentFile` 读取该文件：
+
+```bash
+sudo install -d /etc/systemd/system/roomgap-auth.service.d
+sudo tee /etc/systemd/system/roomgap-auth.service.d/credentials.conf >/dev/null <<'EOF'
+[Service]
+EnvironmentFile=-/root/.config/roomgap-login.env
+EOF
+sudo systemctl daemon-reload
+sudo systemctl restart roomgap-auth
+```
 
 自动流程：密码登录 → 统一认证要求短信二次验证 → 从 box-5b15 接口按 `id` 去重读取新短信 → 提交验证码并信任当前设备指纹 → 验证教室页 → 写入 `.roomgap-auth.json`。只在现有会话校验失败时触发，正常情况下不会发送短信。
 
