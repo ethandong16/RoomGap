@@ -30,7 +30,7 @@ tail -f logs/collect.log
 ## 运行过程与成功条件
 
 1. 读取配置、检查 Node / 构建依赖，获取任务锁。
-2. 使用登录 Cookie 直接通过 HTTP 读取教学楼目录、查询表单和元数据；登录失效时停止并要求重新扫码。
+2. 会话失效时优先用账号密码 + 短信验证码自动登录（可关闭）；失败后回落到扫码。登录成功后直接通过 HTTP 读取教学楼目录、查询表单和元数据；登录失效时停止并要求重新扫码。
 3. HTTP 会话抓取逐楼逐日数据；并发 3，请求启动间隔约 100 ms，单请求超时 30 秒，最多尝试 3 次。
 4. `build-dataset.mjs` 调用 `semester-model.mjs` 计算节次状态。
 5. `verify-dataset.mjs` 验证覆盖、目录摘要及未知状态。
@@ -104,6 +104,12 @@ curl -fsS --max-time 10 -G \
 | `ROOMGAP_REFRESH` | 默认 `1`，重新查询全部楼栋日；设为 `0` 时复用已有完整数据以断点续采 |
 | `ROOMGAP_MIN_FREE_MB` | 默认 `128`，单位 MiB；必须为正整数，空间不足时停止任务 |
 | `ROOMGAP_COOKIES_FILE` | 自动使用项目根目录 `.roomgap-auth.json`（若存在） |
+| `ROOMGAP_LOGIN_USER` / `ROOMGAP_LOGIN_PASSWORD` | 自动短信登录的学校账号密码；只在会话失效时使用，建议放在单独的 600 权限文件 |
+| `ROOMGAP_SMS_API_URL` | box-5b15 最近短信接口，例如 `http://100.77.133.18:8787/api/sms/recent` |
+| `ROOMGAP_SMS_API_TOKEN_FILE` | 含短信接口 `token` 的 JSON 配置路径，权限 600 |
+| `ROOMGAP_SMS_API_TOKEN` | 可选，直接提供短信接口 Token；为空时读取上一项 |
+| `ROOMGAP_SMS_LOGIN` | 默认 `1`；设为 `0` 关闭自动短信登录 |
+| `ROOMGAP_QR_FALLBACK` | 默认 `1`；设为 `0` 时短信登录失败后不再打开扫码流程 |
 | `ROOMGAP_BARK_URL` | Bark 设备 URL；不要提交真实 Key |
 | `ROOMGAP_GIT_PUSH` | 默认 `0`；`1` 在校验后提交两个数据目录并推送 `origin/main`，需先完成 [自动发布配置](deployment.md#可选linux-采集后自动推送) |
 | `ROOMGAP_GIT_PUSH_ATTEMPTS` | 推送尝试次数，示例配置为 `5` |

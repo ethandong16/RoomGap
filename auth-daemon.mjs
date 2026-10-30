@@ -5,6 +5,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {loginWithPassword,generateFingerprint} from './cas-login.mjs';
 
 const root=path.dirname(fileURLToPath(import.meta.url));
 const authFile=path.resolve(root,process.env.ROOMGAP_COOKIES_FILE||'.roomgap-auth.json');
@@ -17,10 +18,16 @@ const barkUrl=process.env.ROOMGAP_BARK_URL||'';
 const timeoutMs=Number(process.env.ROOMGAP_QR_TIMEOUT_MS||180000);
 const pollMs=Number(process.env.ROOMGAP_QR_POLL_MS||1500);
 const classroomBase='https://jwxtxs.tust.edu.cn';
-const service=`${classroomBase}/j_spring_cas_security_check`;
+const service=`${classroomBase}/`;
 const authBase='https://id.tust.edu.cn/authserver';
 const loginUrl=`${authBase}/login?service=${encodeURIComponent(service)}`;
 const classroomUrl=`${classroomBase}/student/teachingResources/classroomUseStatus/index`;
+const loginUser=process.env.ROOMGAP_LOGIN_USER||'';
+const loginPassword=process.env.ROOMGAP_LOGIN_PASSWORD||'';
+const smsApiUrl=process.env.ROOMGAP_SMS_API_URL||'';
+const smsTokenFile=process.env.ROOMGAP_SMS_API_TOKEN_FILE||'';
+const smsLoginEnabled=process.env.ROOMGAP_SMS_LOGIN!=='0'&&Boolean(loginUser&&loginPassword&&smsApiUrl&&(process.env.ROOMGAP_SMS_API_TOKEN||smsTokenFile));
+const qrFallback=process.env.ROOMGAP_QR_FALLBACK!=='0';
 const userAgent='Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36';
 
 if(!apiToken)throw Error('ROOMGAP_AUTH_TOKEN is required');
@@ -165,6 +172,29 @@ async function validateSession(){
   }catch{return false;}
 }
 
+async function readSmsToken(){
+  const configured=process.env.ROOMGAP_SMS_API_TOKEN||'';
+  if(configured)return configured;
+  if(!smsTokenFile)return '';
+  try{
+    const parsed=JSON.parse(await readFile(smsTokenFile,'utf8'));
+    return typeof parsed?.token==='string'?parsed.token:'';
+  }catch{return '';}
+}
+
+async function smsLogin(){
+  const token=await readSmsToken();
+  if(!loginUser||!loginPassword||!smsApiUrl||!token)throw Error('sms_login_not_configured');
+  const state=await loadState();
+  const bfp=state.bfp||generateFingerprint(`${os.hostname()}:${authFile}`);
+  const result=await loginWithPassword({user:loginUser,password:loginPassword,bfp,sms:{url:smsApiUrl,token}});
+  const temporary=`${authFile}.${process.pid}.tmp`;
+  await writeFile(temporary,JSON.stringify(result.cookies),{mode:0o600});
+  await rename(temporary,authFile);
+  await chmod(authFile,0o600);
+  await saveState({bfp:result.bfp,lastSmsLoginAt:new Date().toISOString(),lastResult:'sms_login'});
+}
+
 async function notify(title,body,extra={}){
   if(!barkUrl){console.warn('ROOMGAP_BARK_URL is empty; notification was not sent');return;}
   const url=new URL(barkUrl);
@@ -247,6 +277,30 @@ async function workflow(source,forceQr){
       await saveState({lastSuccessAt:new Date().toISOString(),lastResult:'complete'});
       return;
     }
+    if(!forceQr&&smsLoginEnabled){
+      runtime.status='sms_login';
+      console.log('[auth] SMS login starting');
+      let smsOk=false;
+      try{
+        await smsLogin();
+        smsOk=true;
+      }catch(error){
+        runtime.lastError=error.message;
+        console.error('[auth] SMS login failed: '+error.message);
+        await saveState({lastResult:'sms_login_error',lastError:error.message});
+        if(!qrFallback)throw error;
+        try{await notify('RoomGap 短信登录失败',`自动短信登录失败：${error.message}。将回落到扫码登录。`);}
+        catch(notifyError){console.error(`Bark SMS failure notification failed: ${notifyError.message}`);}
+      }
+      if(smsOk){
+        runtime.lastError=null;
+        runtime.status='collecting';
+        await runCollection();
+        runtime.status='complete';
+        await saveState({lastSuccessAt:new Date().toISOString(),lastResult:'complete'});
+        return;
+      }
+    }
     runtime.status='waiting_for_scan';
     const qr=await createQrSession();
     console.log('[auth] QR transaction created; waiting for scan');
@@ -273,7 +327,7 @@ async function workflow(source,forceQr){
     await saveState({lastResult:'error',lastError:error.message});
     console.error(error);
     if(failedStage!=='collecting'){
-      const stageName={checking:'检查登录状态',waiting_for_scan:'等待扫码',establishing_session:'换取教室会话'}[failedStage]||failedStage;
+      const stageName={checking:'检查登录状态',sms_login:'短信登录',waiting_for_scan:'等待扫码',establishing_session:'换取教室会话'}[failedStage]||failedStage;
       const label=source==='scheduled'?'定时':'手动';
       try{await notify('RoomGap 采集失败',`${label}任务在「${stageName}」阶段失败：${error.message}。数据未更新，请检查教务系统可用性或重新扫码。`);}
       catch(notifyError){console.error(`Bark failure notification failed: ${notifyError.message}`);}
@@ -301,7 +355,7 @@ const server=http.createServer(async(req,res)=>{
     if(!authorized(req))return sendJson(res,401,{error:'unauthorized'});
     if(req.method==='GET'&&url.pathname==='/status')return sendJson(res,200,{...runtime,persisted:await loadState()});
     if(req.method==='POST'&&url.pathname==='/trigger'){
-      const result=await trigger('manual',true);
+      const result=await trigger('manual',url.searchParams.get('qr')==='1');
       return sendJson(res,result.accepted?202:409,result);
     }
     if(req.method==='POST'&&url.pathname==='/scheduled'){

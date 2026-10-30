@@ -1,6 +1,31 @@
 # PC 登录与 Linux 登录态更新
 
-学校登录由你在 PC 上完成。专用 Chrome 通过 SSH SOCKS 代理借用 Linux 的出口网络，桥接脚本只导出学校域名 Cookie；SSH 加密传到 Linux 后由采集器使用。不需要保存账号密码。
+采集机在教室会话失效时会优先用账号密码 + 短信验证码自动登录；只有自动登录失败时才回落到 PC 扫码。凭据和短信 Token 只保存在采集机本地，权限 600，不进入仓库。
+
+## 自动短信登录
+
+在采集机的 `/root/.config/roomgap-login.env` 写入（权限 600）：
+
+```bash
+ROOMGAP_LOGIN_USER='学号'
+ROOMGAP_LOGIN_PASSWORD='密码'
+ROOMGAP_SMS_API_URL='http://100.77.133.18:8787/api/sms/recent'
+ROOMGAP_SMS_API_TOKEN_FILE='/root/.config/box-sms-api.json'
+```
+
+`box-sms-api.json` 是 box-5b15 短信接口的配置（含 `token`），复制到采集机后同样设为 600。认证服务通过额外的 `EnvironmentFile` 读取该文件。
+
+自动流程：密码登录 → 统一认证要求短信二次验证 → 从 box-5b15 接口按 `id` 去重读取新短信 → 提交验证码并信任当前设备指纹 → 验证教室页 → 写入 `.roomgap-auth.json`。只在现有会话校验失败时触发，正常情况下不会发送短信。
+
+设备指纹保存在 `~/.local/state/roomgap-auth/state.json` 的 `bfp` 字段。首次登录会通过短信验证并登记该指纹，后续密码登录可直接跳过二次验证。若教务出现滑块或图形验证码，自动登录会抛 `captcha_required` 并回落到扫码。
+
+| 变量 | 默认 / 作用 |
+| --- | --- |
+| `ROOMGAP_SMS_LOGIN` | 默认 `1`；设为 `0` 关闭自动短信登录 |
+| `ROOMGAP_QR_FALLBACK` | 默认 `1`；设为 `0` 时短信失败不再打开扫码 |
+| `ROOMGAP_SMS_API_TOKEN` | 可选，直接提供 Token；为空时读取 `ROOMGAP_SMS_API_TOKEN_FILE` |
+
+## 手动二维码登录（兜底）
 
 以下示例对应当前测试机 `root@127.0.0.1:2222`。其他部署请替换主机、端口和 `/root/RoomGap` 路径。PC 项目目录应是普通本地目录，避免将浏览器登录配置自动同步到网盘；Git 的忽略规则无法控制网盘同步。
 
