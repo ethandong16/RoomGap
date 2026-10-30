@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "campusRules": [
     {
       "campusCode": "04",
@@ -11,6 +11,11 @@
     }
   ],
   "excludedBuildings": [
+    {
+      "campusCode": "EX-ROOM",
+      "buildingCode": "EX-ROOM",
+      "reason": "外部教室资源是教务系统的占位记录，不是实体教室。"
+    },
     {
       "campusCode": "04",
       "buildingCode": "15",
