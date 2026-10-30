@@ -25,10 +25,27 @@ test('empty occupancy is free only when the caller has a verified day response',
 
 test('official final-period exams occupy period 13 without making the day unknown',async()=>{
  const officialTerm=JSON.parse(await readFile(new URL('./data/semester/term.json',import.meta.url),'utf8'));
- const day=roomDay([{sessionType:'02',start:13,length:1,module:'07'}],officialTerm);
+ const code=officialTerm.examMappings.find(m=>String(m.xqdm)===String(officialTerm.termSeason)&&String(m.xqlxdm)===String(officialTerm.termType)&&Number(m.skjc)===13)?.ksjc;
+ assert.notEqual(code,undefined,'official exam mapping has no period 13');
+ const day=roomDay([{sessionType:'02',start:code,length:1,module:'07'}],officialTerm);
  assert.equal(day.occupiedMask,4096);assert.equal(day.categories.exam,4096);
  assert.equal(day.unknownMask,0);assert.deepEqual(day.anomalies,[]);
  assert.deepEqual(day.freeIntervals,[[1,12]]);
+});
+test('time-slice exam codes cover every spanned period across break codes',()=>{
+ const sliced={...term,examMappings:[
+  ...[100,101,102].map(ksjc=>({xqdm:'1',xqlxdm:'1',ksjc,skjc:7})),
+  ...[104,105,106].map(ksjc=>({xqdm:'1',xqlxdm:'1',ksjc,skjc:8})),
+ ]};
+ const day=roomDay([100,101,102,103,104,105,106].map(start=>({sessionType:'02',start,length:1,module:'07'})),sliced);
+ assert.equal(day.occupiedMask,(1<<6)|(1<<7));assert.equal(day.unknownMask,0);
+ assert.deepEqual(day.freeIntervals,[[1,6],[9,13]]);assert.deepEqual(day.anomalies,[]);
+});
+test('time-slice exam codes outside the mapped range stay unknown',()=>{
+ const sliced={...term,examMappings:[{xqdm:'1',xqlxdm:'1',ksjc:100,skjc:7}]};
+ const day=roomDay([{sessionType:'02',start:200,length:1,module:'07'}],sliced);
+ assert.equal(day.unknownMask,FULL_DAY_MASK);assert.equal(day.freeMask,0);
+ assert.deepEqual(day.anomalies,['missing_exam_mapping']);
 });
 test('overlapping exams preserve all occupied in-day periods at the boundary',()=>{
  const mapped={...term,examMappings:[7,8,12,13].map(p=>({xqdm:'1',xqlxdm:'1',ksjc:p,skjc:p}))};

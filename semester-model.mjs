@@ -18,16 +18,45 @@ export function roomDay(occupancies, term) {
   let occupiedMask=0,unknownMask=0;
   const categories={};const anomalies=[];
   const modules={'06':'course','07':'exam','14':'lab','room':'reservation'};
+  // Exam session codes above the 13 teaching periods are time-slice codes: the
+  // site enumerates every slice an exam covers, including slices that land in
+  // the break between two periods. Codes missing from the official mapping sit
+  // inside such a break, so they span both adjacent periods.
+  const examMap=()=>{
+    const map=new Map();
+    for(const m of term.examMappings){
+      if(String(m.xqdm)!==String(term.termSeason)||String(m.xqlxdm)!==String(term.termType))continue;
+      const code=Number(m.ksjc),period=Number(m.skjc);
+      if(!map.has(code)||period<map.get(code))map.set(code,period);
+    }
+    return map;
+  };
+  let examPeriods=null,examCodes=null;
+  const periods=()=>examPeriods??=examMap();
+  const sortedCodes=()=>examCodes??=[...periods().keys()].sort((a,b)=>a-b);
   for(const r of occupancies) {
     const type=term.sectionTypes.find(t=>t.code===r.sessionType);
     if(!type||!Number.isInteger(r.start)||r.start<1||!Number.isInteger(r.length)||r.length<1){unknownMask=FULL_DAY_MASK;anomalies.push('invalid_session');continue;}
-    let start;
+    let start,end;
     if(r.sessionType==='02') {
-      const matches=term.examMappings.filter(m=>String(m.xqdm)===String(term.termSeason)&&String(m.xqlxdm)===String(term.termType)&&Number(m.ksjc)===r.start).map(m=>Number(m.skjc));
-      if(!matches.length){unknownMask=FULL_DAY_MASK;anomalies.push('missing_exam_mapping');continue;}
-      start=Math.min(...matches);
-    }else start=(r.start-1)*Number(type.multiplier)+1;
-    const end=start-1+r.length*Number(type.multiplier);
+      const mapped=periods().get(r.start);
+      if(mapped!==undefined){
+        start=mapped;
+        end=r.start>13?start+r.length-1:start-1+r.length*Number(type.multiplier);
+      }else if(r.start>13){
+        const codes=sortedCodes();
+        const lower=codes.filter(code=>code<r.start).at(-1);
+        const upper=codes.find(code=>code>r.start);
+        if(lower===undefined||upper===undefined){unknownMask=FULL_DAY_MASK;anomalies.push('missing_exam_mapping');continue;}
+        start=Math.min(periods().get(lower),periods().get(upper));
+        end=Math.max(periods().get(lower),periods().get(upper));
+      }else{
+        unknownMask=FULL_DAY_MASK;anomalies.push('missing_exam_mapping');continue;
+      }
+    }else{
+      start=(r.start-1)*Number(type.multiplier)+1;
+      end=start-1+r.length*Number(type.multiplier);
+    }
     const validRange=Number.isInteger(start)&&Number.isInteger(end)&&start>=1&&start<=13&&end>=start;
     // The official classroom grid paints mapped exam ranges only onto existing
     // period cells. A final-period exam can extend past period 13 after applying
