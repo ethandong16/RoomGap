@@ -174,17 +174,19 @@ async function validateSession(){
 
 async function readSmsToken(){
   const configured=process.env.ROOMGAP_SMS_API_TOKEN||'';
-  if(configured)return configured;
-  if(!smsTokenFile)return '';
+  if(configured)return {token:configured};
+  if(!smsTokenFile)return {token:'',reason:'ROOMGAP_SMS_API_TOKEN_FILE is not set'};
   try{
     const parsed=JSON.parse(await readFile(smsTokenFile,'utf8'));
-    return typeof parsed?.token==='string'?parsed.token:'';
-  }catch{return '';}
+    const token=typeof parsed?.token==='string'?parsed.token:'';
+    return token?{token}:{token:'',reason:`${smsTokenFile} has no token field`};
+  }catch(error){return {token:'',reason:`cannot read ${smsTokenFile} (${error.code||error.message})`};}
 }
 
 async function smsLogin(){
-  const token=await readSmsToken();
-  if(!loginUser||!loginPassword||!smsApiUrl||!token)throw Error('sms_login_not_configured');
+  const {token,reason}=await readSmsToken();
+  const missing=[!loginUser&&'ROOMGAP_LOGIN_USER',!loginPassword&&'ROOMGAP_LOGIN_PASSWORD',!smsApiUrl&&'ROOMGAP_SMS_API_URL'].filter(Boolean);
+  if(missing.length||!token)throw Error(`sms_login_not_configured: ${missing.length?`${missing.join(', ')} unset`:reason}`);
   const state=await loadState();
   const bfp=state.bfp||generateFingerprint(`${os.hostname()}:${authFile}`);
   const result=await loginWithPassword({user:loginUser,password:loginPassword,bfp,sms:{url:smsApiUrl,token}});

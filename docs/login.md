@@ -27,6 +27,8 @@ sudo systemctl restart roomgap-auth
 
 自动流程：密码登录 → 统一认证要求短信二次验证 → 从 box-5b15 接口按 `id` 去重读取新短信 → 提交验证码并信任当前设备指纹 → 验证教室页 → 写入 `.roomgap-auth.json`。只在现有会话校验失败时触发，正常情况下不会发送短信。
 
+日志出现 `sms_login_not_configured` 时，冒号后会写明缺失的变量名或读不到的 Token 文件路径，例如 `sms_login_not_configured: cannot read /root/.config/box-sms-api.json (ENOENT)`；按提示修正 `roomgap-login.env` 后重启 `roomgap-auth` 即可。
+
 设备指纹保存在 `~/.local/state/roomgap-auth/state.json` 的 `bfp` 字段。首次登录会通过短信验证并登记该指纹，后续密码登录可直接跳过二次验证。若教务出现滑块或图形验证码，自动登录会抛 `captcha_required` 并回落到扫码。
 
 | 变量 | 默认 / 作用 |
