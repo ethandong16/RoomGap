@@ -14,6 +14,21 @@ elif [[ -n "${ROOMGAP_CONFIG:-}" ]]; then
   exit 1
 fi
 
+# Cron should enter through auth-daemon so expired sessions can be refreshed.
+# The daemon invokes this script without ROOMGAP_AUTH_DAEMON, avoiding recursion.
+if [[ "${ROOMGAP_AUTH_DAEMON:-0}" == 1 ]]; then
+  [[ -n "${ROOMGAP_AUTH_TOKEN:-}" ]] || { echo 'ERROR: ROOMGAP_AUTH_TOKEN is required for scheduled authentication' >&2; exit 1; }
+  command -v curl >/dev/null || { echo 'ERROR: curl is required for scheduled authentication' >&2; exit 1; }
+  auth_url="${ROOMGAP_AUTH_URL:-http://127.0.0.1:${ROOMGAP_AUTH_PORT:-9010}/scheduled}"
+  response=$(curl -fsS --connect-timeout 5 --max-time 15 -X POST \
+    -H "Authorization: Bearer ${ROOMGAP_AUTH_TOKEN}" "$auth_url") || {
+    echo 'ERROR: auth-daemon scheduled trigger failed' >&2
+    exit 1
+  }
+  echo "SCHEDULED: $response"
+  exit 0
+fi
+
 notify() {
   [[ -z "${ROOMGAP_BARK_URL:-}" ]] && return 0
   curl -fsS --connect-timeout 5 --max-time 10 -G \
