@@ -25,7 +25,7 @@ echo $!
 tail -f logs/collect.log
 ```
 
-`Ctrl+C` 结束 `tail -f` 只退出日志查看。入口使用 `flock` 阻止同一 checkout 的重复采集；锁文件可以保留，进程退出后内核会自动释放锁。直接运行 `node collect-api.mjs` 会绕过该保护，因此日常运维使用入口脚本。
+`Ctrl+C` 结束 `tail -f` 只退出日志查看。入口使用 `flock` 阻止同一 checkout 的重复采集，遇到锁时会先等待最多 30 秒（`ROOMGAP_LOCK_WAIT`），超时后输出 `SKIPPED` 并退出 0；锁文件可以保留，进程退出后内核会自动释放锁。直接运行 `node collect-api.mjs` 会绕过该保护，因此日常运维使用入口脚本。
 
 ## 运行过程与成功条件
 
@@ -103,6 +103,7 @@ curl -fsS --max-time 10 -G \
 | `ROOMGAP_CONFIG` | 默认 `$XDG_CONFIG_HOME/roomgap.env`，未设 XDG 时为 `$HOME/.config/roomgap.env` |
 | `ROOMGAP_REFRESH` | 默认 `1`，重新查询全部楼栋日；设为 `0` 时复用已有完整数据以断点续采 |
 | `ROOMGAP_MIN_FREE_MB` | 默认 `128`，单位 MiB；必须为正整数，空间不足时停止任务 |
+| `ROOMGAP_LOCK_WAIT` | 默认 `30`，秒；采集入口遇到另一实例时等待锁的最长时间，超时后 `SKIPPED` 退出 |
 | `ROOMGAP_COOKIES_FILE` | 自动使用项目根目录 `.roomgap-auth.json`（若存在） |
 | `ROOMGAP_LOGIN_USER` / `ROOMGAP_LOGIN_PASSWORD` | 自动短信登录的学校账号密码；只在会话失效时使用，建议放在单独的 600 权限文件 |
 | `ROOMGAP_SMS_API_URL` | box-5b15 最近短信接口，例如 `http://100.77.133.18:8787/api/sms/recent` |

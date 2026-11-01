@@ -7,4 +7,5 @@ PATH=/usr/local/bin:/usr/bin:/bin
 0 3 * * 0 cd /home/roomgap/RoomGap && ROOMGAP_AUTH_DAEMON=1 ./run-collect.sh >> /home/roomgap/RoomGap/logs/collect.log 2>&1
 
 # Retry a commit left behind by a transient GitHub outage without recollecting.
-*/30 * * * * cd /home/roomgap/RoomGap && ROOMGAP_GIT_PUSH_ONLY=1 ./run-collect.sh >> /home/roomgap/RoomGap/logs/push.log 2>&1
+# Avoid :00 and :30 so this short job never races a collection for the checkout lock.
+5,35 * * * * cd /home/roomgap/RoomGap && ROOMGAP_GIT_PUSH_ONLY=1 ./run-collect.sh >> /home/roomgap/RoomGap/logs/push.log 2>&1

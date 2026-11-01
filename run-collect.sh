@@ -47,10 +47,18 @@ on_exit() {
 }
 trap on_exit EXIT
 
-# Serialize cron and manual runs that use this checkout.
+# Serialize cron and manual runs that use this checkout. A short wait lets the
+# path-only GitHub retry cron finish before a scheduled collection gives up.
 command -v flock >/dev/null || { echo 'ERROR: install util-linux (flock)' >&2; exit 1; }
+lock_wait="${ROOMGAP_LOCK_WAIT:-30}"
+[[ "$lock_wait" =~ ^[0-9]+$ ]] || { echo 'ERROR: ROOMGAP_LOCK_WAIT must be a non-negative integer' >&2; exit 1; }
 exec 9>.roomgap-collect.lock
-if ! flock -n 9; then
+if (( lock_wait > 0 )); then
+  flock -w "$lock_wait" 9 || lock_busy=1
+else
+  flock -n 9 || lock_busy=1
+fi
+if [[ "${lock_busy:-0}" == 1 ]]; then
   echo 'SKIPPED: another collection is already running in this checkout'
   exit 0
 fi

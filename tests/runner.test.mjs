@@ -122,6 +122,7 @@ test('build failure preserves exit status and skips verification and success not
 
 test('overlapping manual and scheduled runs cannot overwrite the same snapshots', options, async t => {
   const f = await fixture(t, {hold: true});
+  f.env.ROOMGAP_LOCK_WAIT = '0';
   const first = f.run();
   try {
     const deadline = Date.now() + 5000;
@@ -134,6 +135,22 @@ test('overlapping manual and scheduled runs cannot overwrite the same snapshots'
     assert.equal((await first).code, 0);
   }
   assert.equal(await f.stages(), 'collect\nbuild\nverify\n');
+});
+
+test('a short-lived lock holder does not make collection skip', options, async t => {
+  const f = await fixture(t, {hold: true});
+  f.env.ROOMGAP_LOCK_WAIT = '10';
+  const first = f.run();
+  try {
+    const deadline = Date.now() + 5000;
+    while (!await f.stages().catch(() => '') && Date.now() < deadline) await delay(25);
+    const second = await f.run();
+    assert.equal(second.code, 0, second.output);
+    assert.doesNotMatch(second.output, /SKIPPED: another collection/);
+  } finally {
+    assert.equal((await first).code, 0);
+  }
+  assert.equal(await f.stages(), 'collect\nbuild\nverify\ncollect\nbuild\nverify\n');
 });
 
 test('automatic publication commits only data and pushes to a local bare repository', options, async t => {
