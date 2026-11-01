@@ -40,7 +40,7 @@ stage="依赖检查"
 failure_detail=""
 on_exit() {
   local code=$?
-  if [[ $code -ne 0 ]]; then
+  if [[ $code -ne 0 && $code -ne 75 ]]; then
     echo "ERROR: ${stage} failed (exit ${code})" >&2
     notify "RoomGap 任务失败" "阶段：${stage}；退出码 ${code}。${failure_detail} 请查看本次运行日志。"
   fi
@@ -48,7 +48,7 @@ on_exit() {
 trap on_exit EXIT
 
 # Serialize cron and manual runs that use this checkout. A short wait lets the
-# path-only GitHub retry cron finish before a scheduled collection gives up.
+# push-only GitHub retry cron finish before a scheduled collection gives up.
 command -v flock >/dev/null || { echo 'ERROR: install util-linux (flock)' >&2; exit 1; }
 lock_wait="${ROOMGAP_LOCK_WAIT:-30}"
 [[ "$lock_wait" =~ ^[0-9]+$ ]] || { echo 'ERROR: ROOMGAP_LOCK_WAIT must be a non-negative integer' >&2; exit 1; }
@@ -60,7 +60,8 @@ else
 fi
 if [[ "${lock_busy:-0}" == 1 ]]; then
   echo 'SKIPPED: another collection is already running in this checkout'
-  exit 0
+  # EX_TEMPFAIL tells the auth daemon to retry instead of recording a success.
+  exit 75
 fi
 
 # Compatibility with the original ARM64 installation; normal installs use PATH.

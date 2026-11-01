@@ -28,12 +28,18 @@ const smsApiUrl=process.env.ROOMGAP_SMS_API_URL||'';
 const smsTokenFile=process.env.ROOMGAP_SMS_API_TOKEN_FILE||'';
 const smsLoginEnabled=process.env.ROOMGAP_SMS_LOGIN!=='0'&&Boolean(loginUser&&loginPassword&&smsApiUrl&&(process.env.ROOMGAP_SMS_API_TOKEN||smsTokenFile));
 const qrFallback=process.env.ROOMGAP_QR_FALLBACK!=='0';
+const retryDelaySeconds=Number(process.env.ROOMGAP_AUTH_RETRY_SECONDS||300);
+const retryAttempts=Number(process.env.ROOMGAP_AUTH_RETRY_ATTEMPTS||6);
 const userAgent='Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36';
 
 if(!apiToken)throw Error('ROOMGAP_AUTH_TOKEN is required');
 if(!Number.isInteger(listenPort)||listenPort<1||listenPort>65535)throw Error('Invalid ROOMGAP_AUTH_PORT');
+if(!Number.isInteger(retryDelaySeconds)||retryDelaySeconds<0)throw Error('Invalid ROOMGAP_AUTH_RETRY_SECONDS');
+if(!Number.isInteger(retryAttempts)||retryAttempts<0)throw Error('Invalid ROOMGAP_AUTH_RETRY_ATTEMPTS');
 
 const runtime={active:false,status:'idle',source:null,startedAt:null,finishedAt:null,lastError:null};
+let retryTimer=null;
+let retryCount=0;
 
 function chinaDate(){
   const parts=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
@@ -263,20 +269,35 @@ async function runCollection(){
       cwd:root,stdio:'inherit',env:{...process.env,HOME:process.env.HOME||os.homedir(),ROOMGAP_COOKIES_FILE:authFile,ROOMGAP_REFRESH:'1'},
     });
     child.once('error',reject);
-    child.once('exit',(code,signal)=>code===0?resolve():reject(Error(`collection exited with ${code??signal}`)));
+    child.once('exit',(code,signal)=>{
+      if(code===0)return resolve();
+      if(code===75){const error=Error('another collection is already running in this checkout');error.busy=true;return reject(error);}
+      reject(Error(`collection exited with ${code??signal}`));
+    });
   });
 }
 
+async function collectAndRecord(){
+  runtime.status='collecting';
+  await runCollection();
+  runtime.status='complete';
+  retryCount=0;
+  await saveState({lastSuccessAt:new Date().toISOString(),lastResult:'complete',lastError:null});
+}
+
+function scheduleRetry(source){
+  retryTimer=setTimeout(()=>{retryTimer=null;void workflow(source,false);},retryDelaySeconds*1000);
+}
+
 async function workflow(source,forceQr){
+  if(retryTimer){clearTimeout(retryTimer);retryTimer=null;}
+  if(runtime.active)return;
   runtime.active=true;runtime.status='checking';runtime.source=source;runtime.startedAt=new Date().toISOString();runtime.finishedAt=null;runtime.lastError=null;
   console.log(`[auth] ${source} workflow started`);
   try{
     if(!forceQr&&await validateSession()){
       console.log('[auth] existing classroom session is valid');
-      runtime.status='collecting';
-      await runCollection();
-      runtime.status='complete';
-      await saveState({lastSuccessAt:new Date().toISOString(),lastResult:'complete'});
+      await collectAndRecord();
       return;
     }
     if(!forceQr&&smsLoginEnabled){
@@ -296,10 +317,7 @@ async function workflow(source,forceQr){
       }
       if(smsOk){
         runtime.lastError=null;
-        runtime.status='collecting';
-        await runCollection();
-        runtime.status='complete';
-        await saveState({lastSuccessAt:new Date().toISOString(),lastResult:'complete'});
+        await collectAndRecord();
         return;
       }
     }
@@ -317,20 +335,28 @@ async function workflow(source,forceQr){
     console.log('[auth] QR scan confirmed; establishing classroom session');
     runtime.status='establishing_session';
     await finishQrLogin(qr);
-    runtime.status='collecting';
-    await runCollection();
-    runtime.status='complete';
-    await saveState({lastSuccessAt:new Date().toISOString(),lastResult:'complete'});
+    await collectAndRecord();
     console.log('[auth] authentication and collection completed');
   }catch(error){
+    if(error.busy){
+      retryCount+=1;
+      runtime.status='busy';runtime.lastError=error.message;
+      if(retryCount<=retryAttempts){
+        await saveState({lastResult:'busy',lastError:error.message});
+        console.warn(`[auth] checkout lock is busy; retry ${retryCount}/${retryAttempts} in ${retryDelaySeconds}s`);
+        scheduleRetry(source);
+        return;
+      }
+      console.error(`[auth] checkout lock stayed busy after ${retryAttempts} retries`);
+    }
     // run-collect.sh sends its own failure notification; only report the stages before it runs.
     const failedStage=runtime.status;
     runtime.status='error';runtime.lastError=error.message;
     await saveState({lastResult:'error',lastError:error.message});
     console.error(error);
     if(failedStage!=='collecting'){
-      const stageName={checking:'检查登录状态',sms_login:'短信登录',waiting_for_scan:'等待扫码',establishing_session:'换取教室会话'}[failedStage]||failedStage;
-      const label=source==='scheduled'?'定时':'手动';
+      const stageName={checking:'检查登录状态',sms_login:'短信登录',waiting_for_scan:'等待扫码',establishing_session:'换取教室会话',busy:'等待采集锁'}[failedStage]||failedStage;
+      const label=source==='manual'?'手动':'定时';
       try{await notify('RoomGap 采集失败',`${label}任务在「${stageName}」阶段失败：${error.message}。数据未更新，请检查教务系统可用性或重新扫码。`);}
       catch(notifyError){console.error(`Bark failure notification failed: ${notifyError.message}`);}
     }
@@ -346,6 +372,7 @@ async function trigger(source,forceQr){
     if(state.lastScheduledDate===today)return {accepted:false,reason:'already_checked_today'};
     await saveState({lastScheduledDate:today});
   }
+  retryCount=0;
   void workflow(source,forceQr);
   return {accepted:true,status:'started'};
 }

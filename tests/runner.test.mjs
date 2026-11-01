@@ -121,7 +121,7 @@ test('build failure preserves exit status and skips verification and success not
 });
 
 test('overlapping manual and scheduled runs cannot overwrite the same snapshots', options, async t => {
-  const f = await fixture(t, {hold: true});
+  const f = await fixture(t, {hold: true, bark: true});
   f.env.ROOMGAP_LOCK_WAIT = '0';
   const first = f.run();
   try {
@@ -129,8 +129,9 @@ test('overlapping manual and scheduled runs cannot overwrite the same snapshots'
     while (!await f.stages().catch(() => '') && Date.now() < deadline) await delay(25);
     assert.equal(await f.stages(), 'collect\n');
     const second = await f.run();
-    assert.equal(second.code, 0, second.output);
+    assert.equal(second.code, 75, second.output);
     assert.match(second.output, /SKIPPED: another collection/);
+    assert.doesNotMatch(await readFile(path.join(f.root, 'bark.log'), 'utf8'), /任务失败/);
   } finally {
     assert.equal((await first).code, 0);
   }
