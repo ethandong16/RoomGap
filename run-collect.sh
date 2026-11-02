@@ -44,8 +44,15 @@ on_exit() {
     echo "ERROR: ${stage} failed (exit ${code})" >&2
     notify "RoomGap 任务失败" "阶段：${stage}；退出码 ${code}。${failure_detail} 请查看本次运行日志。"
   fi
+  if [[ "${ROOMGAP_GIT_PUSH_ONLY:-0}" == 1 ]]; then
+    printf '[%s] END: GitHub push-only (exit %d)\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$code"
+  fi
 }
 trap on_exit EXIT
+
+if [[ "${ROOMGAP_GIT_PUSH_ONLY:-0}" == 1 ]]; then
+  printf '[%s] START: GitHub push-only\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')"
+fi
 
 # Serialize cron and manual runs that use this checkout. A short wait lets the
 # push-only GitHub retry cron finish before a scheduled collection gives up.
@@ -92,14 +99,34 @@ check_publish_repo() {
   git var GIT_AUTHOR_IDENT >/dev/null
   git diff --cached --quiet || { echo 'ERROR: commit or unstage existing staged changes before automatic publication' >&2; exit 1; }
 }
+fetch_with_retry() {
+  local attempts="${ROOMGAP_GIT_FETCH_ATTEMPTS:-3}"
+  local delay_seconds="${ROOMGAP_GIT_FETCH_RETRY_SECONDS:-15}"
+  [[ "$attempts" =~ ^[1-9][0-9]*$ ]] || { echo 'ERROR: ROOMGAP_GIT_FETCH_ATTEMPTS must be a positive integer' >&2; return 1; }
+  [[ "$delay_seconds" =~ ^[0-9]+$ ]] || { echo 'ERROR: ROOMGAP_GIT_FETCH_RETRY_SECONDS must be a non-negative integer' >&2; return 1; }
+  local attempt=1 output
+  while true; do
+    if output=$(GIT_TERMINAL_PROMPT=0 git fetch --prune origin main 2>&1); then
+      [[ -n "$output" ]] && echo "$output"
+      return 0
+    fi
+    echo "$output" >&2
+    if (( attempt >= attempts )); then
+      failure_detail="Git fetch failed before GitHub push after ${attempts} attempts."
+      return 1
+    fi
+    echo "WARN: Git fetch attempt ${attempt}/${attempts} failed; retrying in ${delay_seconds} seconds" >&2
+    sleep "$delay_seconds"
+    attempt=$((attempt+1))
+    if (( delay_seconds > 0 && delay_seconds < 300 )); then
+      delay_seconds=$((delay_seconds*2))
+      (( delay_seconds > 300 )) && delay_seconds=300
+    fi
+  done
+}
 sync_publish_repo() {
   local output
-  if ! output=$(GIT_TERMINAL_PROMPT=0 git fetch --prune origin main 2>&1); then
-    echo "$output" >&2
-    failure_detail="Git fetch failed before GitHub push."
-    return 1
-  fi
-  [[ -n "$output" ]] && echo "$output"
+  fetch_with_retry || return 1
 
   if git merge-base --is-ancestor origin/main HEAD; then
     return 0
@@ -133,7 +160,7 @@ push_with_retry() {
   local delay_seconds="${ROOMGAP_GIT_PUSH_RETRY_SECONDS:-15}"
   [[ "$attempts" =~ ^[1-9][0-9]*$ ]] || { echo 'ERROR: ROOMGAP_GIT_PUSH_ATTEMPTS must be a positive integer' >&2; return 1; }
   [[ "$delay_seconds" =~ ^[0-9]+$ ]] || { echo 'ERROR: ROOMGAP_GIT_PUSH_RETRY_SECONDS must be a non-negative integer' >&2; return 1; }
-  local attempt=1 output sync_output
+  local attempt=1 output
   while true; do
     if output=$(GIT_TERMINAL_PROMPT=0 git push origin main 2>&1); then
       [[ -n "$output" ]] && echo "$output"
@@ -144,10 +171,8 @@ push_with_retry() {
       failure_detail="Git push failed after ${attempts} attempts."
       return 1
     fi
-    if ! sync_output=$(sync_publish_repo 2>&1); then
-      echo "$sync_output" >&2
-    elif [[ -n "$sync_output" ]]; then
-      echo "$sync_output"
+    if ! sync_publish_repo; then
+      echo 'WARN: Git synchronization failed after a push attempt' >&2
     fi
     echo "WARN: Git push attempt ${attempt}/${attempts} failed; retrying in ${delay_seconds} seconds" >&2
     sleep "$delay_seconds"
@@ -158,9 +183,13 @@ push_with_retry() {
     fi
   done
 }
-if [[ "${ROOMGAP_GIT_PUSH:-0}" == 1 ]]; then check_publish_repo; fi
+if [[ "${ROOMGAP_GIT_PUSH:-0}" == 1 ]]; then
+  if [[ "${ROOMGAP_GIT_PUSH_ONLY:-0}" == 1 ]]; then stage="GitHub 补推"; fi
+  check_publish_repo
+fi
 
 if [[ "${ROOMGAP_GIT_PUSH_ONLY:-0}" == 1 ]]; then
+  stage="GitHub 补推"
   [[ "${ROOMGAP_GIT_PUSH:-0}" == 1 ]] || { echo 'ERROR: ROOMGAP_GIT_PUSH_ONLY requires ROOMGAP_GIT_PUSH=1' >&2; exit 1; }
   sync_publish_repo
   pending=$(git rev-list --count origin/main..HEAD)
@@ -168,7 +197,6 @@ if [[ "${ROOMGAP_GIT_PUSH_ONLY:-0}" == 1 ]]; then
     echo 'SKIPPED: no unpushed commits'
     exit 0
   fi
-  stage="GitHub 补推"
   push_with_retry
   notify "RoomGap 数据已补推" "此前未推送的数据已同步到 GitHub。"
   echo "SUCCESS: pushed ${pending} pending commit(s)"

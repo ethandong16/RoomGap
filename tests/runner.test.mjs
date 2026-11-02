@@ -34,6 +34,8 @@ ${stage === 'build' && failBuild ? 'process.exit(7);' : ''}\n`);
   Object.assign(env, {
     ROOMGAP_CONFIG: path.join(root, 'config.env'),
     ROOMGAP_MIN_FREE_MB: '1',
+    ROOMGAP_GIT_FETCH_ATTEMPTS: '3',
+    ROOMGAP_GIT_FETCH_RETRY_SECONDS: '0',
     ROOMGAP_GIT_PUSH_ATTEMPTS: '1',
     ROOMGAP_GIT_PUSH_RETRY_SECONDS: '0',
     PATH: `${path.join(root, 'bin')}:${env.PATH}`,
@@ -49,8 +51,8 @@ ${stage === 'build' && failBuild ? 'process.exit(7);' : ''}\n`);
   return {root, env, run, stages: () => readFile(path.join(root, 'stages.log'), 'utf8')};
 }
 
-async function publicationFixture(t) {
-  const f = await fixture(t);
+async function publicationFixture(t, options = {}) {
+  const f = await fixture(t, options);
   const remote = path.join(f.root, 'remote.git');
   const git = async (...args) => (await execute('git', args, {cwd: f.root})).stdout.trim();
   await git('init', '-b', 'main');
@@ -68,6 +70,30 @@ async function publicationFixture(t) {
   await git('push', 'origin', 'main');
   f.env.ROOMGAP_GIT_PUSH = '1';
   return {...f, git, remote};
+}
+
+async function mockFetchFailures(f, failures, {sleep = false, succeedFirst = false} = {}) {
+  const realGit = (await execute('which', ['git'])).stdout.trim();
+  await writeFile(path.join(f.root, 'bin/git'), `#!/bin/sh
+if [ "$1" = fetch ]; then
+  count=0
+  if [ -f fetch-count ]; then count=$(cat fetch-count); fi
+  count=$((count+1))
+  printf '%s' "$count" > fetch-count
+  printf '%s\\n' "\${GIT_TERMINAL_PROMPT:-unset}" >> fetch-prompts.log
+  if [ "$count" -le ${failures + (succeedFirst ? 1 : 0)} ] && [ "$count" -gt ${succeedFirst ? 1 : 0} ]; then
+    echo "mock Git fetch timeout $count" >&2
+    exit 1
+  fi
+fi
+exec "${realGit}" "$@"
+`, {mode: 0o755});
+  if (sleep) await writeFile(path.join(f.root, 'bin/sleep'), '#!/bin/sh\nprintf "%s\\n" "$1" >> sleep.log\n', {mode: 0o755});
+}
+
+function assertPushOnlyLog(output, exitCode) {
+  assert.match(output, /\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{4}\] START: GitHub push-only/);
+  assert.match(output, new RegExp(`\\[\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}[+-]\\d{4}\\] END: GitHub push-only \\(exit ${exitCode}\\)`));
 }
 
 test('missing shared model fails before contacting the school', options, async t => {
@@ -215,6 +241,91 @@ if [ "$attempts" -lt 3 ]; then exit 1; fi
   assert.equal(await f.git('rev-parse', 'HEAD'), await f.git('--git-dir', f.remote, 'rev-parse', 'main'));
 });
 
+test('push-only mode retries transient fetch failures before publishing', options, async t => {
+  const f = await publicationFixture(t);
+  await writeFile(path.join(f.root, 'data/dataset/rooms.json'), '[2]\n');
+  await f.git('add', 'data/dataset/rooms.json');
+  await f.git('commit', '-m', 'Pending collected data');
+  await mockFetchFailures(f, 2, {sleep: true});
+  f.env.ROOMGAP_GIT_PUSH_ONLY = '1';
+  delete f.env.ROOMGAP_GIT_FETCH_ATTEMPTS;
+  delete f.env.ROOMGAP_GIT_FETCH_RETRY_SECONDS;
+  const result = await f.run();
+  assert.equal(result.code, 0, result.output);
+  assert.match(result.output, /Git fetch attempt 1\/3 failed; retrying in 15 seconds/);
+  assert.match(result.output, /Git fetch attempt 2\/3 failed; retrying in 30 seconds/);
+  assert.match(result.output, /SUCCESS: pushed 1 pending commit/);
+  assertPushOnlyLog(result.output, 0);
+  assert.equal(await readFile(path.join(f.root, 'fetch-count'), 'utf8'), '3');
+  assert.equal(await readFile(path.join(f.root, 'fetch-prompts.log'), 'utf8'), '0\n0\n0\n');
+  assert.equal(await readFile(path.join(f.root, 'sleep.log'), 'utf8'), '15\n30\n');
+  await assert.rejects(f.stages(), {code: 'ENOENT'});
+  assert.equal(await f.git('rev-parse', 'HEAD'), await f.git('--git-dir', f.remote, 'rev-parse', 'main'));
+});
+
+test('push-only fetch exhaustion reports the correct stage and leaves pending commits untouched', options, async t => {
+  const f = await publicationFixture(t, {bark: true});
+  await writeFile(path.join(f.root, 'data/dataset/rooms.json'), '[2]\n');
+  await f.git('add', 'data/dataset/rooms.json');
+  await f.git('commit', '-m', 'Pending collected data');
+  await mockFetchFailures(f, 99);
+  f.env.ROOMGAP_GIT_PUSH_ONLY = '1';
+  const result = await f.run();
+  assert.equal(result.code, 1, result.output);
+  assert.match(result.output, /mock Git fetch timeout 3/);
+  assert.match(result.output, /ERROR: GitHub 补推 failed \(exit 1\)/);
+  assert.doesNotMatch(result.output, /ERROR: 依赖检查 failed|SUCCESS:|SKIPPED: no unpushed commits/);
+  assertPushOnlyLog(result.output, 1);
+  assert.equal(await readFile(path.join(f.root, 'fetch-count'), 'utf8'), '3');
+  const notifications = await readFile(path.join(f.root, 'bark.log'), 'utf8');
+  assert.match(notifications, /阶段：GitHub 补推/);
+  assert.match(notifications, /Git fetch failed before GitHub push after 3 attempts/);
+  assert.doesNotMatch(notifications, /RoomGap 数据已补推/);
+  await assert.rejects(f.stages(), {code: 'ENOENT'});
+  assert.notEqual(await f.git('rev-parse', 'HEAD'), await f.git('--git-dir', f.remote, 'rev-parse', 'main'));
+});
+
+test('automatic publication retries the initial fetch without recollecting', options, async t => {
+  const f = await publicationFixture(t);
+  await mockFetchFailures(f, 2);
+  const result = await f.run();
+  assert.equal(result.code, 0, result.output);
+  assert.equal(await f.stages(), 'collect\nbuild\nverify\n');
+  assert.equal(await readFile(path.join(f.root, 'fetch-count'), 'utf8'), '3');
+  assert.equal(await f.git('rev-parse', 'HEAD'), await f.git('--git-dir', f.remote, 'rev-parse', 'main'));
+});
+
+test('automatic publication keeps its commit when initial fetch attempts are exhausted', options, async t => {
+  const f = await publicationFixture(t, {bark: true});
+  await mockFetchFailures(f, 99);
+  const result = await f.run();
+  assert.equal(result.code, 1, result.output);
+  assert.match(result.output, /ERROR: GitHub 推送 failed \(exit 1\)/);
+  assert.equal(await f.stages(), 'collect\nbuild\nverify\n');
+  assert.equal(await readFile(path.join(f.root, 'fetch-count'), 'utf8'), '3');
+  assert.notEqual(await f.git('rev-parse', 'HEAD'), await f.git('--git-dir', f.remote, 'rev-parse', 'main'));
+  const notifications = await readFile(path.join(f.root, 'bark.log'), 'utf8');
+  assert.match(notifications, /阶段：GitHub 推送/);
+  assert.match(notifications, /Git fetch failed before GitHub push after 3 attempts/);
+  assert.doesNotMatch(notifications, /RoomGap 采集完成|RoomGap 数据已推送/);
+});
+
+test('synchronization retries fetch after a transient push failure', options, async t => {
+  const f = await publicationFixture(t);
+  // Let the initial synchronization succeed, then fail two synchronization fetches after push.
+  await mockFetchFailures(f, 2, {succeedFirst: true});
+  f.env.ROOMGAP_GIT_PUSH_ATTEMPTS = '2';
+  const hook = path.join(f.remote, 'hooks/pre-receive');
+  await writeFile(hook, '#!/bin/sh\nif [ ! -f "$0.count" ]; then touch "$0.count"; exit 1; fi\n', {mode: 0o755});
+  const result = await f.run();
+  assert.equal(result.code, 0, result.output);
+  assert.match(result.output, /Git push attempt 1\/2 failed/);
+  assert.match(result.output, /Git fetch attempt 1\/3 failed/);
+  assert.match(result.output, /Git fetch attempt 2\/3 failed/);
+  assert.equal(await readFile(path.join(f.root, 'fetch-count'), 'utf8'), '4');
+  assert.equal(await f.git('rev-parse', 'HEAD'), await f.git('--git-dir', f.remote, 'rev-parse', 'main'));
+});
+
 test('push-only mode publishes a pending commit without collecting again', options, async t => {
   const f = await publicationFixture(t);
   await writeFile(path.join(f.root, 'data/dataset/rooms.json'), '[2]\n');
@@ -224,8 +335,80 @@ test('push-only mode publishes a pending commit without collecting again', optio
   const result = await f.run();
   assert.equal(result.code, 0, result.output);
   assert.match(result.output, /SUCCESS: pushed 1 pending commit/);
+  assertPushOnlyLog(result.output, 0);
   await assert.rejects(f.stages(), {code: 'ENOENT'});
   assert.equal(await f.git('rev-parse', 'HEAD'), await f.git('--git-dir', f.remote, 'rev-parse', 'main'));
+});
+
+test('push-only skip is bracketed by timestamped run boundaries', options, async t => {
+  const f = await publicationFixture(t);
+  f.env.ROOMGAP_GIT_PUSH_ONLY = '1';
+  const result = await f.run();
+  assert.equal(result.code, 0, result.output);
+  assert.match(result.output, /SKIPPED: no unpushed commits/);
+  assertPushOnlyLog(result.output, 0);
+});
+
+test('push-only lock contention is timestamped without a failure notification', options, async t => {
+  const f = await publicationFixture(t, {hold: true, bark: true});
+  const first = f.run();
+  try {
+    const deadline = Date.now() + 5000;
+    while (!await f.stages().catch(() => '') && Date.now() < deadline) await delay(25);
+    assert.equal(await f.stages(), 'collect\n');
+    f.env.ROOMGAP_GIT_PUSH_ONLY = '1';
+    f.env.ROOMGAP_LOCK_WAIT = '0';
+    const result = await f.run();
+    assert.equal(result.code, 75, result.output);
+    assert.match(result.output, /SKIPPED: another collection/);
+    assertPushOnlyLog(result.output, 75);
+    assert.doesNotMatch(await readFile(path.join(f.root, 'bark.log'), 'utf8'), /任务失败/);
+  } finally {
+    assert.equal((await first).code, 0);
+  }
+});
+
+test('push-only rejects invalid fetch retry configuration', options, async t => {
+  const f = await publicationFixture(t);
+  f.env.ROOMGAP_GIT_PUSH_ONLY = '1';
+  f.env.ROOMGAP_GIT_FETCH_ATTEMPTS = '0';
+  const result = await f.run();
+  assert.equal(result.code, 1, result.output);
+  assert.match(result.output, /ROOMGAP_GIT_FETCH_ATTEMPTS must be a positive integer/);
+  assert.match(result.output, /ERROR: GitHub 补推 failed/);
+  assertPushOnlyLog(result.output, 1);
+});
+
+test('fetch retry settings honor a single attempt and cap exponential backoff', options, async t => {
+  const f = await publicationFixture(t);
+  await mockFetchFailures(f, 99, {sleep: true});
+  f.env.ROOMGAP_GIT_PUSH_ONLY = '1';
+  f.env.ROOMGAP_GIT_FETCH_ATTEMPTS = '1';
+  f.env.ROOMGAP_GIT_FETCH_RETRY_SECONDS = '0';
+  const once = await f.run();
+  assert.equal(once.code, 1, once.output);
+  assert.doesNotMatch(once.output, /Git fetch attempt .* retrying/);
+  assert.equal(await readFile(path.join(f.root, 'fetch-count'), 'utf8'), '1');
+  await assert.rejects(readFile(path.join(f.root, 'sleep.log')), {code: 'ENOENT'});
+
+  f.env.ROOMGAP_GIT_FETCH_ATTEMPTS = '4';
+  f.env.ROOMGAP_GIT_FETCH_RETRY_SECONDS = '200';
+  const capped = await f.run();
+  assert.equal(capped.code, 1, capped.output);
+  assert.equal(await readFile(path.join(f.root, 'fetch-count'), 'utf8'), '5');
+  assert.equal(await readFile(path.join(f.root, 'sleep.log'), 'utf8'), '200\n300\n300\n');
+  assertPushOnlyLog(capped.output, 1);
+});
+
+test('push-only rejects invalid fetch retry delay', options, async t => {
+  const f = await publicationFixture(t);
+  f.env.ROOMGAP_GIT_PUSH_ONLY = '1';
+  f.env.ROOMGAP_GIT_FETCH_RETRY_SECONDS = '-1';
+  const result = await f.run();
+  assert.equal(result.code, 1, result.output);
+  assert.match(result.output, /ROOMGAP_GIT_FETCH_RETRY_SECONDS must be a non-negative integer/);
+  assert.match(result.output, /ERROR: GitHub 补推 failed/);
+  assertPushOnlyLog(result.output, 1);
 });
 
 test('a failed push can be retried even when no new data diff exists', options, async t => {

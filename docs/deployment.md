@@ -149,12 +149,14 @@ GitHub 的 SSH 测试成功时仍可能返回非零状态，以终端中的认�
 
 ```bash
 ROOMGAP_GIT_PUSH=1
+ROOMGAP_GIT_FETCH_ATTEMPTS=3
+ROOMGAP_GIT_FETCH_RETRY_SECONDS=15
 ROOMGAP_GIT_PUSH_ATTEMPTS=5
 ROOMGAP_GIT_PUSH_RETRY_SECONDS=15
 ```
 
-cron 直接运行入口即可默认完整刷新，流程是：刷新 → 构建 → 校验 → 仅提交 `data/semester`、`data/dataset` → 推送 `main` → 托管平台自动构建。推送失败时默认按 15、30、60、120 秒等待后重试，共尝试 5 次。脚本会在采集前检查仓库、分支、提交身份和暂存区；不会帮你解决认证错误、非快进冲突或绕过分支保护。
+cron 直接运行入口即可默认完整刷新，流程是：刷新 → 构建 → 校验 → 仅提交 `data/semester`、`data/dataset` → 推送 `main` → 托管平台自动构建。每次同步远端时，`git fetch` 默认共尝试 3 次，失败后分别等待 15、30 秒；`git push` 默认共尝试 5 次，失败后按 15、30、60、120 秒等待并重试。每次 push 失败后还会尝试同步，最多增加一轮 fetch 重试，因此长期网络故障时整次任务可能持续更久。脚本会在采集前检查仓库、分支、提交身份和暂存区；不会帮你解决认证错误、非快进冲突或绕过分支保护。
 
-推送最终失败时数据和本地提交保留，日志标注 `GitHub 推送` 阶段失败。示例 cron 每 30 分钟执行一次 `ROOMGAP_GIT_PUSH_ONLY=1 ./run-collect.sh`；它只补推 `origin/main..HEAD` 中的提交，不会重新抓取 10080 份数据。脚本没有接入托管平台部署状态查询，因此 Bark 只确认数据已推送。
+推送最终失败时数据和本地提交保留，日志标注 `GitHub 推送` 阶段失败。示例 cron 每 30 分钟执行一次 `ROOMGAP_GIT_PUSH_ONLY=1 ./run-collect.sh`；它只补推 `origin/main..HEAD` 中的提交，不会重新采集。补推日志会在每次运行的开始和结束写入带时区的时间戳与退出码；初始 fetch 失败等错误标注为 `GitHub 补推`。脚本没有接入托管平台部署状态查询，因此 Bark 只确认数据已推送。
 
 如果运营商连 `ssh.github.com:443` 也长期阻断，重试无法解决持续性路由故障。此时应使用你控制的境外 VPS 作为最小权限中继：采集机只把已提交的 Git 仓库推到中继，中继再用独立 Deploy Key 推送 GitHub。不要使用公开加速站、共享代理或来路不明的镜像传输写入凭据。
