@@ -55,7 +55,7 @@ du -sh data node_modules dist .roomgap-browser logs 2>/dev/null
 
 2026-09-22 将服务器采集改为直接 HTTP 后，测试机不再需要 Chromium。卸载 Chromium 及仅由它引入的图形依赖、清理 8 MiB 归档日志和未运行的可再下载 Cursor 远程缓存后，3.3 GB 根分区的可用空间从 178 MiB 增至约 800 MiB，使用率从 95% 降至 75%。Avahi/mDNS 被明确保留，`openstick.lan` 不受影响。
 
-APT 查询不会再写回两个大型二进制缓存。完整采集仍需以 `manifest.json`、覆盖校验和最终 `SUCCESS` 为准。原服务器采集入口备份在 `/root/.local/share/roomgap-backups/run-collect.YKWmvs.sh`；新增的系统配置可按下述文件路径检查和撤销，恢复 journald 策略后需重启该服务。已按保留策略清理的历史系统日志无法恢复；Cursor 远程缓存可在下次使用时自动下载。
+APT 查询不会再写回两个大型二进制缓存。完整采集仍需以 `manifest.json`、覆盖校验和最终 `SUCCESS` 为准。服务器侧不再保留历史采集入口备份，需要回滚时使用 Git 历史；新增的系统配置可按下述文件路径检查和撤销，恢复 journald 策略后需重启该服务。已按保留策略清理的历史系统日志无法恢复；Cursor 远程缓存可在下次使用时自动下载。
 
 当前小磁盘方案分三层：
 
