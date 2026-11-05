@@ -18,6 +18,7 @@ async function fixture(t, {missingModel = false, failBuild = false, hold = false
   await writeFile(path.join(root, 'config.env'), bark ? "ROOMGAP_BARK_URL='https://example.invalid/device'\n" : '');
   await writeFile(path.join(root, 'classroom-page.mjs'), 'export {};\n');
   await writeFile(path.join(root, 'cookie-header.mjs'), 'export {};\n');
+  await copyFile(new URL('../write-if-changed.mjs', import.meta.url), path.join(root, 'write-if-changed.mjs'));
   if (!missingModel) await writeFile(path.join(root, 'semester-model.mjs'), 'export {};\n');
   for (const [file, stage] of [['collect-api.mjs', 'collect'], ['build-dataset.mjs', 'build'], ['verify-dataset.mjs', 'verify']]) {
     await writeFile(path.join(root, file), `import {appendFile, writeFile} from 'node:fs/promises';
