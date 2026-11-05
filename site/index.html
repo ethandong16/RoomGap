@@ -2,10 +2,10 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f4f6f5">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f5f2ea">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="RoomGap 天津科技大学空闲教室查询。按日期、校区和节次，寻找适合专注的教室。">
+  <meta name="description" content="RoomGap 天津科技大学空闲教室查询。按日期、校区和节次，找到适合专注的教室。">
   <meta name="author" content="Ethan Dong">
   <title>RoomGap · 空闲教室</title>
   <script>
@@ -15,7 +15,7 @@
       const theme=preference==='system'&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':preference==='dark'?'dark':'light';
       document.documentElement.dataset.theme=theme;
       document.documentElement.dataset.themePreference=preference;
-      document.querySelector('meta[name="theme-color"]').content=theme==='dark'?'#090b0d':'#f4f6f5';
+      document.querySelector('meta[name="theme-color"]').content=theme==='dark'?'#0f0f10':'#f5f2ea';
     })();
   </script>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
@@ -29,7 +29,9 @@
     <div class="header-inner">
       <a class="brand" href="./" aria-label="RoomGap 首页">
         <span class="brand-mark" aria-hidden="true"><svg><use href="./icons.svg#door"/></svg></span>
-        <span class="brand-lockup"><strong>RoomGap<span class="brand-dot">.</span></strong><span class="brand-description">空闲教室</span></span>
+        <span class="brand-word">RoomGap<span class="brand-dot">.</span></span>
+        <span class="brand-divider" aria-hidden="true"></span>
+        <span class="brand-tagline">空闲教室</span>
       </a>
       <div class="header-actions">
         <div id="theme-switcher" class="theme-switcher" role="radiogroup" aria-label="外观模式">
@@ -45,39 +47,37 @@
   <main class="page">
     <section class="hero" aria-labelledby="hero-title">
       <div class="hero-copy">
-        <p class="eyebrow"><span aria-hidden="true"></span>天津科技大学</p>
-        <h1 id="hero-title">空闲教室查询</h1>
-      </div>
-      <div class="semester-status" aria-label="当前收录范围">
-        <div class="semester-heading">
-          <svg aria-hidden="true"><use href="./icons.svg#calendar"/></svg>
-          <div><span>当前学期</span><strong>2026 — 2027 · 秋季</strong></div>
-        </div>
-        <div class="semester-stats">
-          <div><strong id="candidate-count">—</strong><span>候选教室</span></div>
-          <div><strong id="campus-count">—</strong><span>校区</span></div>
-          <div><strong>20</strong><span>教学周</span></div>
-        </div>
-        <p class="semester-range"><span class="status-dot" aria-hidden="true"></span><span id="term-range">正在读取学期数据</span></p>
+        <p class="eyebrow"><span class="eyebrow-dot" aria-hidden="true"></span>天津科技大学 · 校园空教室</p>
+        <h1 id="hero-title">找一间，<br><em>安静</em>的空教室。</h1>
       </div>
     </section>
 
     <section class="query-panel" aria-labelledby="query-title">
-      <div class="section-heading query-heading">
-        <div><span class="section-index">01</span><h2 id="query-title">查询条件</h2></div>
-        <p>日期、校区和节次是必看的三项</p>
+      <div class="semester-line" aria-label="当前学期">
+        <span class="semester-context"><span class="status-dot" aria-hidden="true"></span><strong>2026 — 2027 · 秋季</strong><span id="term-range">正在读取学期数据</span></span>
+        <span class="semester-sync"><span id="sync-label">正在同步</span></span>
+      </div>
+      <div class="query-panel-head">
+        <div>
+          <p class="section-label"><span class="section-index">01</span>查询</p>
+          <h2 id="query-title">什么时候，想去哪？</h2>
+        </div>
       </div>
 
       <form id="query-form">
         <fieldset id="filters" disabled>
           <legend class="sr-only">选择日期、校区和节次</legend>
+
           <div class="primary-filters">
             <div class="field date-field">
               <label for="date">日期 <span id="week-label"></span></label>
               <div class="date-control">
                 <button type="button" id="previous-day" class="icon-button" aria-label="前一天"><svg aria-hidden="true"><use href="./icons.svg#chevron-left"/></svg></button>
                 <div class="date-picker-shell">
-                  <span id="date-picker" class="date-picker-button" aria-hidden="true"><svg><use href="./icons.svg#calendar"/></svg><span id="date-display">选择日期</span></span>
+                  <span id="date-picker" class="date-picker-button" aria-hidden="true">
+                    <svg><use href="./icons.svg#calendar"/></svg>
+                    <span id="date-display" class="date-display"><span class="date-main">选择日期</span><span class="date-week"></span></span>
+                  </span>
                   <input id="date" type="date" required aria-label="查询日期">
                 </div>
                 <button type="button" id="next-day" class="icon-button" aria-label="后一天"><svg aria-hidden="true"><use href="./icons.svg#chevron-right"/></svg></button>
@@ -87,38 +87,57 @@
 
             <div class="field campus-field">
               <label for="campus">校区</label>
-              <select id="campus"><option value="">全部校区</option></select>
-            </div>
-
-            <div class="field period-field">
-              <div class="period-heading">
-                <div class="period-label"><span id="period-label">节次</span><span id="period-selection-count">未选节次</span></div>
-                <div id="period-presets" class="period-presets" role="group" aria-label="常用节次组合">
-                  <span>快捷选择</span>
-                  <button class="period-preset" type="button" data-periods="1,2,3,4" aria-pressed="false">1–4</button>
-                  <button class="period-preset" type="button" data-periods="5,6,7,8" aria-pressed="false">5–8</button>
-                  <button class="period-preset" type="button" data-periods="9,10,11,12,13" aria-pressed="false">9–13</button>
-                  <button class="period-clear" type="button" data-periods="">清空</button>
-                </div>
+              <div class="select-shell">
+                <select id="campus"><option value="">全部校区</option></select>
+                <svg aria-hidden="true"><use href="./icons.svg#chevron-down"/></svg>
               </div>
-              <div id="period-picker" class="period-picker" role="group" aria-labelledby="period-label"></div>
             </div>
           </div>
 
-          <div class="secondary-filters" aria-label="更多筛选">
-            <div class="field compact">
-              <label for="building">教学楼</label>
-              <select id="building"><option value="">全部教学楼</option></select>
+          <div class="field period-field">
+            <div class="period-heading">
+              <div class="period-label"><span id="period-label">节次</span><span id="period-selection-count">未选节次</span></div>
+              <div id="period-presets" class="period-presets" role="group" aria-label="常用节次组合">
+                <span class="preset-label">快捷</span>
+                <button class="period-preset" type="button" data-periods="1,2,3,4" aria-pressed="false">1–4</button>
+                <button class="period-preset" type="button" data-periods="5,6,7,8" aria-pressed="false">5–8</button>
+                <button class="period-preset" type="button" data-periods="9,10,11,12,13" aria-pressed="false">9–13</button>
+                <button class="period-clear" type="button" data-periods="">清空</button>
+              </div>
             </div>
+            <div id="period-picker" class="period-picker" role="group" aria-labelledby="period-label"></div>
+          </div>
+
+          <div class="query-actions">
+            <p class="query-tip"><svg aria-hidden="true"><use href="./icons.svg#spark"/></svg>连续空闲优先</p>
+            <button class="query-submit" type="submit">查看空教室<svg aria-hidden="true"><use href="./icons.svg#arrow-right"/></svg></button>
+          </div>
+
+          <div class="secondary-filters" aria-label="筛选工具">
             <div class="field search-field">
               <label for="search">教室搜索</label>
               <div class="search-control"><svg aria-hidden="true"><use href="./icons.svg#search"/></svg><input type="search" id="search" placeholder="教室名或教学楼" autocomplete="off"></div>
             </div>
-            <div class="field capacity-field">
-              <label for="capacity">最低容量</label>
-              <select id="capacity"><option value="0">不限容量</option><option value="30">至少 30 人</option><option value="60">至少 60 人</option><option value="100">至少 100 人</option><option value="150">至少 150 人</option></select>
+            <div class="filter-actions">
+              <button class="more-toggle" id="more-toggle" type="button" aria-expanded="false" aria-controls="more-filters">更多筛选<svg aria-hidden="true"><use href="./icons.svg#chevron-down"/></svg></button>
+              <button class="reset-button" id="reset-filters" type="button"><svg aria-hidden="true"><use href="./icons.svg#reset"/></svg><span>重置</span></button>
             </div>
-            <button class="reset-button" id="reset-filters" type="button"><svg aria-hidden="true"><use href="./icons.svg#reset"/></svg><span>重置全部</span></button>
+            <div id="more-filters" class="more-filters" hidden>
+              <div class="field compact">
+                <label for="building">教学楼</label>
+                <div class="select-shell">
+                  <select id="building"><option value="">全部教学楼</option></select>
+                  <svg aria-hidden="true"><use href="./icons.svg#chevron-down"/></svg>
+                </div>
+              </div>
+              <div class="field capacity-field">
+                <label for="capacity">最低容量</label>
+                <div class="select-shell">
+                  <select id="capacity"><option value="0">不限容量</option><option value="30">至少 30 人</option><option value="60">至少 60 人</option><option value="100">至少 100 人</option><option value="150">至少 150 人</option></select>
+                  <svg aria-hidden="true"><use href="./icons.svg#chevron-down"/></svg>
+                </div>
+              </div>
+            </div>
           </div>
         </fieldset>
       </form>
@@ -127,12 +146,15 @@
 
     <section class="results-section" aria-labelledby="results-title" aria-busy="true" id="results-section">
       <div class="results-header">
-        <div>
-          <div class="result-kicker"><span class="section-index">02</span><span>查询结果</span></div>
-          <h2 id="results-title">正在寻找空闲教室<span id="result-count"></span></h2>
+        <div class="results-title-group">
+          <p class="section-label"><span class="section-index">02</span>查询结果</p>
+          <h2 id="results-title"><span class="title-lead">正在寻找空闲教室</span><span id="result-count"></span><span class="title-tail" hidden>空教室</span></h2>
           <p id="selection-summary">读取已采集的教室安排…</p>
         </div>
-        <span class="sort-label"><svg aria-hidden="true"><use href="./icons.svg#sort"/></svg>连续空闲更久的优先</span>
+        <div class="results-tools">
+          <span class="period-legend" aria-label="时段条图例"><span><i class="free"></i>空闲</span><span><i class="busy"></i>占用</span><span><i class="unknown"></i>未知</span><span><i class="chosen"></i>所选</span></span>
+          <span class="sort-label"><svg aria-hidden="true"><use href="./icons.svg#sort"/></svg>按连续空闲时长排序</span>
+        </div>
       </div>
       <p id="announcement" class="sr-only" role="status" aria-live="polite"></p>
       <div id="state-panel" class="state-panel"><span class="spinner" aria-hidden="true"></span><h3>正在加载教室安排</h3><p>稍等一下，你的专注空间马上就好。</p></div>
@@ -141,13 +163,18 @@
     </section>
 
     <aside id="data-note" class="data-note">
-      <svg aria-hidden="true"><use href="./icons.svg#info"/></svg>
-      <div><h2>出发前，了解一下</h2><p>排课空闲不保证实际开放，临时调整以学校安排为准。当前按第 1–13 节查询，暂不提供钟点时间。</p><p class="data-meta" id="data-meta">正在读取数据更新时间</p><p class="data-scope">收录普通教室及类型未注明的教室，已排除虚拟、体育及专用资源。教室容量表示座位总数，不代表当前剩余座位。</p><p class="analytics-note">为改进服务，本页仅记录匿名访问、查询和教室详情事件，不收集账号、姓名或联系方式。</p></div>
+      <p class="section-label"><span class="section-index">03</span>数据说明</p>
+      <div class="data-note-body">
+        <p>排课空闲不保证实际开放，临时调整以学校安排为准；当前仅支持第 1–13 节，不提供钟点时间。</p>
+        <p class="data-meta" id="data-meta">正在读取数据更新时间</p>
+        <p class="data-scope">共 <strong id="candidate-count">—</strong> 间候选教室，覆盖 <strong id="campus-count">—</strong> 个校区、20 个教学周。收录普通教室及类型未明教室；已排除虚拟、体育及专用资源，容量为座位总数，不代表剩余座位。</p>
+        <p class="analytics-note">仅记录匿名访问、查询和教室详情事件，不收集账号、姓名或联系方式。</p>
+      </div>
     </aside>
   </main>
 
   <footer class="site-footer">
-      <button id="author-trigger" class="author-trigger" type="button" aria-haspopup="dialog"><span class="footer-brand">RoomGap<span class="brand-dot">.</span></span><span>by Ethan Dong</span><svg aria-hidden="true"><use href="./icons.svg#chevron-right"/></svg></button>
+    <button id="author-trigger" class="author-trigger" type="button" aria-haspopup="dialog"><span class="footer-brand">RoomGap<span class="brand-dot">.</span></span><span>by Ethan Dong</span><svg aria-hidden="true"><use href="./icons.svg#arrow-up-right"/></svg></button>
     <span class="footer-disclaimer">非学校官方网站 · 仅供查询参考</span>
   </footer>
 
@@ -159,7 +186,7 @@
   </dialog>
   <dialog id="author-dialog" class="author-dialog" aria-labelledby="author-dialog-title">
     <div class="author-dialog-head"><div><p class="dialog-eyebrow">RoomGap</p><h2 id="author-dialog-title">Ethan Dong</h2></div><button id="close-author-dialog" type="button" class="icon-button" aria-label="关闭作者信息"><svg aria-hidden="true"><use href="./icons.svg#close"/></svg></button></div>
-    <div class="author-dialog-body"><div class="author-links" aria-label="Ethan Dong 的联系方式">
+    <div class="author-dialog-body"><p class="author-note">一个为同学做的空教室查询工具。发现问题或有建议，欢迎联系。</p><div class="author-links" aria-label="Ethan Dong 的联系方式">
       <a class="author-link" href="https://github.com/ethandong16" target="_blank" rel="noopener noreferrer" aria-label="GitHub" title="GitHub"><svg aria-hidden="true"><use href="./icons.svg#contact-github"/></svg></a>
       <a class="author-link" href="https://x.com/ethandong06" target="_blank" rel="noopener noreferrer" aria-label="X" title="X"><svg aria-hidden="true"><use href="./icons.svg#contact-x"/></svg></a>
       <a class="author-link" href="mailto:yimingdong16@gmail.com" aria-label="Email" title="Email"><svg aria-hidden="true"><use href="./icons.svg#contact-mail"/></svg></a>

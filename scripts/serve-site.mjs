@@ -3,7 +3,7 @@ import {readFile, realpath, stat} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 
-const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml'};
+const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.ttf':'font/ttf','.woff2':'font/woff2'};
 export async function startServer({port=4173,root=fileURLToPath(new URL('../dist',import.meta.url))}={}) {
   const dist=await realpath(root);
   await stat(path.join(dist,'index.html')).catch(()=>{throw Error('请先执行 node scripts/build-site.mjs');});

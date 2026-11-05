@@ -4,7 +4,11 @@ import {beijingDate, initialDate, dateInTerm, moveDate, teachingWeek, buildingKe
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const icon = name => `<svg aria-hidden="true"><use href="./icons.svg#${name}"/></svg>`;
-const prettyDate = date => new Intl.DateTimeFormat('zh-CN', {timeZone:'UTC', month:'long', day:'numeric', weekday:'long'}).format(new Date(`${date}T00:00:00Z`));
+const WEEKDAY_NAMES = ['周日','周一','周二','周三','周四','周五','周六'];
+const prettyDate = date => {
+  const value = new Date(`${date}T00:00:00Z`);
+  return `${value.getUTCMonth() + 1}月${value.getUTCDate()}日 ${WEEKDAY_NAMES[value.getUTCDay()]}`;
+};
 const intervalText = ([a, b]) => a === b ? `第 ${a} 节` : `第 ${a}–${b} 节`;
 const controls = {date:$('date'),campus:$('campus'),building:$('building'),search:$('search'),capacity:$('capacity')};
 const themeMedia=matchMedia('(prefers-color-scheme: dark)');
@@ -23,6 +27,7 @@ const analytics = (() => {
     try { localStorage.setItem('roomgap-session', sessionId); } catch {}
   }
   function track(type, data = {}) {
+    if (['localhost', '127.0.0.1'].includes(location.hostname)) return;
     const payload = JSON.stringify({type, sessionId, path: location.pathname, data});
     try {
       if (navigator.sendBeacon) {
@@ -36,17 +41,38 @@ const analytics = (() => {
 })();
 analytics.track('page_view');
 
+const rippleSelector='.query-submit, .hero-quick-button, .period-option';
+function spawnButtonRipple(event){
+  const button=event.target.closest?.(rippleSelector);
+  if(!button||button.disabled||event.button!==0||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const rect=button.getBoundingClientRect();
+  const size=Math.max(rect.width,rect.height)*2.1;
+  const ripple=document.createElement('span');
+  ripple.className='button-ripple';
+  ripple.style.width=ripple.style.height=`${size}px`;
+  ripple.style.left=`${event.clientX-rect.left-size/2}px`;
+  ripple.style.top=`${event.clientY-rect.top-size/2}px`;
+  button.append(ripple);
+  ripple.addEventListener('animationend',()=>ripple.remove(),{once:true});
+}
+document.addEventListener('pointerdown',spawnButtonRipple,{passive:true});
+
 const moreObserver = new IntersectionObserver(entries=>{
   if(entries.some(entry=>entry.isIntersecting))appendMoreRooms();
 }, {rootMargin:'0px 0px 300px 0px'});
 
 function announce(text) { $('announcement').textContent = text; }
+function setResultsTitle(lead, {tail = true} = {}) {
+  const title = $('results-title');
+  title.querySelector('.title-lead').textContent = lead;
+  title.querySelector('.title-tail').hidden = !tail;
+}
 function applyTheme(preference,{persist=true}={}) {
   themePreference=['system','light','dark'].includes(preference)?preference:'system';
   const theme=themePreference==='system'?(themeMedia.matches?'dark':'light'):themePreference;
   document.documentElement.dataset.theme=theme;
   document.documentElement.dataset.themePreference=themePreference;
-  document.querySelector('meta[name="theme-color"]').content=theme==='dark'?'#090b0d':'#f4f6f5';
+  document.querySelector('meta[name="theme-color"]').content=theme==='dark'?'#0f0f10':'#f5f2ea';
   document.querySelectorAll('.theme-option').forEach(button=>{
     const selected=button.dataset.theme===themePreference;
     button.setAttribute('aria-checked',String(selected));
@@ -97,8 +123,12 @@ function syncDateLabels() {
   $('next-day').disabled = !valid || date >= catalog.term.endDate;
   $('today').disabled = !dateInTerm(beijingDate(), catalog.term) || date === beijingDate();
   $('week-label').textContent = valid ? `第 ${teachingWeek(date,catalog.term)} 周` : '';
-  $('date-display').textContent = valid ? prettyDate(date) : '选择日期';
-  if (valid) $('selection-summary').textContent = `${prettyDate(date)} · ${selectedPeriodText()} · ${controls.campus.selectedOptions[0]?.textContent || '全部校区'}`;
+  if (valid) {
+    $('date-display').innerHTML = `<span class="date-main">${prettyDate(date)}</span><span class="date-week">第 ${teachingWeek(date,catalog.term)} 周</span>`;
+    $('selection-summary').textContent = `${prettyDate(date)} · ${selectedPeriodText()} · ${controls.campus.selectedOptions[0]?.textContent || '全部校区'}`;
+  } else {
+    $('date-display').innerHTML = '<span class="date-main">选择日期</span><span class="date-week"></span>';
+  }
 }
 function updateBuildings() {
   const old = controls.building.value;
@@ -116,7 +146,24 @@ function periodStrip(state) {
 }
 function roomCard(entry, index) {
   const {room,state,continuousLength}=entry;
-  return `<article class="room-card"><div class="room-card-head"><span class="campus-tag">${esc(room.campus)}</span><span class="available-tag">${icon('check')}所选节次空闲</span></div><h3>${esc(room.name)}</h3><p class="location-line">${icon('pin')}${esc(room.building || room.buildingCode)}</p><div class="room-meta"><span>${icon('people')}${room.capacity == null ? '容量未注明' : `${esc(room.capacity)} 人`}</span><span class="type-label">${esc(room.type || '类型未注明')}</span></div><div class="period-strip" aria-hidden="true">${periodStrip(state)}</div><p class="strip-caption">${icon('clock')}${selectedPeriodText()} 均空闲</p><div class="card-footer"><span>最长连空 ${continuousLength} 节</span><button type="button" data-room="${index}" aria-label="查看${esc(room.campus)}${esc(room.building || room.buildingCode)}${esc(room.name)}全天安排">查看全天${icon('arrow-right')}</button></div></article>`;
+  return `<article class="room-card" style="--index:${index % 12}">
+    <div class="room-card-top">
+      <div class="room-identity">
+        <span class="campus-tag">${esc(room.campus)}</span>
+        <h3>${esc(room.name)}</h3>
+        <p class="location-line">${icon('pin')}<span>${esc(room.building || room.buildingCode)}</span></p>
+      </div>
+      <div class="room-streak" title="所选节次附近最长连续空闲 ${continuousLength} 节"><strong>${continuousLength}</strong><span>节<br>连空</span></div>
+    </div>
+    <div class="period-strip" aria-hidden="true">${periodStrip(state)}</div>
+    <div class="room-card-foot">
+      <div class="room-facts">
+        <span>${icon('people')}${room.capacity == null ? '容量未注明' : `${esc(room.capacity)} 人`}</span>
+        ${room.type ? `<span class="fact-sep" aria-hidden="true"></span><span class="type-label">${esc(room.type)}</span>` : ''}
+      </div>
+      <button type="button" data-room="${index}" aria-label="查看${esc(room.campus)}${esc(room.building || room.buildingCode)}${esc(room.name)}全天安排">全天安排${icon('arrow-right')}</button>
+    </div>
+  </article>`;
 }
 function paintCards(append = false) {
   const start = append ? $('room-grid').children.length : 0;
@@ -140,16 +187,16 @@ function renderResults() {
   if (loading || hadError || !currentDay) return;
   if (!selectedPeriods.size) {
     matches=[];visibleCount=24;
-    $('results-title').firstChild.textContent='先选择要查询的节次';
+    setResultsTitle('先选择查询节次', {tail:false});
     $('result-count').textContent='';
     $('results-section').setAttribute('aria-busy','false');
-    showState('empty','请选择节次','可以选择一个或多个节次，不必连续。');
+    showState('empty','请选择节次','点选一个或多个节次，不必连续。上面的快捷组合可以帮你少点几下。');
     announce(`${prettyDate(controls.date.value)}，尚未选择节次`);
     return;
   }
   matches = selectRooms(catalog.rooms, currentDay, filters());
   visibleCount = 24;
-  $('results-title').firstChild.textContent = '这些教室，等你来坐';
+  setResultsTitle('找到 ');
   $('result-count').textContent = `${matches.length} 间`;
   $('results-section').setAttribute('aria-busy','false');
   if (!matches.length) {
@@ -178,14 +225,14 @@ async function loadSelectedDay() {
     controls.date.reportValidity();
     currentDay=null;hadError=true;loading=false;
     $('result-count').textContent='';
-    $('results-title').firstChild.textContent='请选择学期内的日期';
+    setResultsTitle('请选择学期内的日期', {tail:false});
     $('results-section').setAttribute('aria-busy','false');
     showState('empty','日期不在当前学期内',`可查询 ${catalog.term.startDate} 至 ${catalog.term.endDate}。`);
     return;
   }
   loading=true;hadError=false;currentDay=null;
   $('results-section').setAttribute('aria-busy','true');
-  $('results-title').firstChild.textContent='正在寻找空闲教室';
+  setResultsTitle('正在寻找空闲教室', {tail:false});
   $('result-count').textContent='';
   showState('loading','正在加载教室安排','稍等一下，你的专注空间马上就好。');
   const date=controls.date.value;
@@ -198,7 +245,7 @@ async function loadSelectedDay() {
     if(controls.date.value!==date)return;
     loading=false;hadError=true;
     $('results-section').setAttribute('aria-busy','false');
-    $('results-title').firstChild.textContent='暂时无法查询';
+    setResultsTitle('暂时无法查询', {tail:false});
     showState('error','教室安排没有加载成功',error.message,'重新加载数据');
     // A catalog mismatch requires fetching a fresh manifest, not repeatedly requesting an old version.
     $('state-action').onclick=initialize;
@@ -209,6 +256,7 @@ function clearAdditional() {
   controls.building.value='';controls.search.value='';controls.capacity.value='0';
   renderResults();
 }
+function setMoreFilters(open){$('more-filters').hidden=!open;$('more-toggle').setAttribute('aria-expanded',String(open));}
 function resetFilters() {
   if(!catalog)return;
   controls.campus.value='';
@@ -216,6 +264,7 @@ function resetFilters() {
   controls.building.value='';controls.search.value='';controls.capacity.value='0';
   selectedPeriods.clear();
   renderPeriodPicker();saveCampus();
+  setMoreFilters(false);
   const defaultDate=initialDate(catalog.term).date;
   if(controls.date.value!==defaultDate){controls.date.value=defaultDate;loadSelectedDay();}else renderResults();
 }
@@ -230,7 +279,7 @@ function openRoom(index, trigger) {
     return `<div class="detail-period ${status}${selectedPeriods.has(i+1)?' chosen':''}"><strong>第 ${i+1} 节</strong><span>${{free:'空闲',busy:'占用',unknown:'未知'}[status]}</span></div>`;
   }).join('');
   $('dialog-body').className='dialog-body';
-  $('dialog-body').innerHTML=`<p class="dialog-location">${esc(room.campus)} / ${esc(room.building || room.buildingCode)}</p><div class="room-meta"><span>${icon('people')}${room.capacity==null?'容量未注明':`${esc(room.capacity)} 人`}</span><span class="type-label">${esc(room.type || '类型未注明')}</span></div><div class="detail-date"><strong>${prettyDate(controls.date.value)}</strong><span>第 ${teachingWeek(controls.date.value,catalog.term)} 周</span></div><div class="legend"><span><i></i>空闲</span><span><i class="busy"></i>占用</span><span><i class="unknown"></i>未知</span></div><div class="detail-periods">${periods}</div><p class="detail-caption">绿色边框标出你选择的${selectedPeriodText()}</p><h3 class="interval-heading">当天连续空闲时段</h3><div class="interval-tags">${state.freeIntervals.map(interval=>`<span>${intervalText(interval)}</span>`).join('')}</div><p class="detail-note">排课空闲不保证实际开放，临时调整以学校安排为准。容量是教室座位总数，不代表当前剩余座位。</p>`;
+  $('dialog-body').innerHTML=`<div class="detail-top"><p class="dialog-location">${esc(room.campus)}<span class="location-slash">/</span>${esc(room.building || room.buildingCode)}</p><div class="room-meta"><span>${icon('people')}${room.capacity==null?'容量未注明':`${esc(room.capacity)} 人`}</span>${room.type?`<span class="type-label">${esc(room.type)}</span>`:''}</div></div><div class="detail-date"><strong>${prettyDate(controls.date.value)}</strong><span>第 ${teachingWeek(controls.date.value,catalog.term)} 周</span></div><div class="legend"><span><i></i>空闲</span><span><i class="busy"></i>占用</span><span><i class="unknown"></i>未知</span></div><div class="detail-periods">${periods}</div><p class="detail-caption">描边标出你选择的${selectedPeriodText()}</p><div class="detail-intervals"><h3 class="interval-heading">当天连续空闲时段</h3><div class="interval-tags">${state.freeIntervals.map(interval=>`<span>${intervalText(interval)}</span>`).join('')}</div></div><p class="detail-note">排课空闲不保证实际开放，临时调整以学校安排为准。容量是教室座位总数，不代表当前剩余座位。</p>`;
   $('room-dialog').showModal();
   document.body.style.overflow='hidden';
   $('close-dialog').focus();
@@ -260,22 +309,28 @@ async function initialize() {
     if(previous&&[...controls.building.options].some(o=>o.value===previous.building))controls.building.value=previous.building;
     $('candidate-count').textContent=candidates.length;
     $('campus-count').textContent=campuses.length;
+    $('sync-label').textContent='数据已同步';
     $('term-range').textContent=`${term.startDate.replaceAll('-','.')} — ${term.endDate.replaceAll('-','.')}`;
     const captured=new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(coverage.lastCapture));
-    $('data-meta').textContent=`数据更新于 ${captured}（北京时间） · ${term.weeks} 周安排 · ${candidates.length} 间候选教室`;
+    $('data-meta').textContent=`数据更新于 ${captured}（北京时间）`;
     $('filters').disabled=false;
     await loadSelectedDay();
   } catch(error) {
     catalog=null;loading=false;hadError=true;
+    $('sync-label').textContent='数据未加载';
     $('results-section').setAttribute('aria-busy','false');
-    $('results-title').firstChild.textContent='暂时无法查询';$('result-count').textContent='';
+    setResultsTitle('暂时无法查询', {tail:false});$('result-count').textContent='';
     $('selection-summary').textContent='数据加载完成后即可查询';
     showState('error','教室数据没有加载成功',error.message,'重试');
     announce('教室数据加载失败，请重试');
   }
 }
 
-$('query-form').addEventListener('submit',event=>{event.preventDefault();renderResults();});
+$('query-form').addEventListener('submit',event=>{
+  event.preventDefault();
+  renderResults();
+  $('results-section').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
+});
 const themeSwitcher=$('theme-switcher');
 themeSwitcher.addEventListener('click',event=>{
   const button=event.target.closest('button[data-theme]');
@@ -316,12 +371,14 @@ $('period-presets').addEventListener('click',event=>{
   selectedPeriods=new Set(button.dataset.periods?button.dataset.periods.split(',').map(Number):[]);
   renderPeriodPicker();renderResults();
 });
+
 for(const control of [controls.building,controls.capacity])control.addEventListener('change',renderResults);
 controls.search.addEventListener('input',renderResults);
 $('previous-day').onclick=()=>{controls.date.value=moveDate(controls.date.value,-1);loadSelectedDay();};
 $('next-day').onclick=()=>{controls.date.value=moveDate(controls.date.value,1);loadSelectedDay();};
 $('today').onclick=()=>{controls.date.value=beijingDate();loadSelectedDay();};
 $('reset-filters').onclick=resetFilters;
+$('more-toggle').onclick=()=>setMoreFilters($('more-filters').hidden);
 $('room-grid').addEventListener('click',event=>{const trigger=event.target.closest('button[data-room]');if(trigger)openRoom(Number(trigger.dataset.room),trigger);});
 $('close-dialog').onclick=()=>$('room-dialog').close();
 $('room-dialog').addEventListener('click',event=>{if(event.target===$('room-dialog')){const rect=$('room-dialog').getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)$('room-dialog').close();}});
@@ -359,6 +416,7 @@ const backToTop=$('back-to-top');
 let scrollUpdatePending=false;
 function updateBackToTop() {
   const visible=window.scrollY>Math.min(480,window.innerHeight*.65);
+  document.documentElement.classList.toggle('is-scrolled',window.scrollY>12);
   backToTop.dataset.visible=String(visible);
   backToTop.setAttribute('aria-hidden',String(!visible));
   backToTop.tabIndex=visible?0:-1;
