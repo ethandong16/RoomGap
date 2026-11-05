@@ -106,7 +106,7 @@ try{
  });
  await check('known 19-room query and combined filters',async()=>{
    await setPeriods(page,[1,2,3,4]);await ready(page);await date(page,'2026-09-08');await page.locator('#campus').selectOption('04');await count(page,19);
-   await page.locator('#building').selectOption('04/11');await page.locator('#search').fill('111');await page.locator('#capacity').selectOption('100');await count(page,1);
+   await page.locator('#more-toggle').click();await page.locator('#building').selectOption('04/11');await page.locator('#search').fill('111');await page.locator('#capacity').selectOption('100');await count(page,1);
    assert.match(await page.locator('.room-card h3').textContent(),/111/);
  });
  await check('keyboard details, 13 states, Escape and focus restoration',async()=>{
@@ -142,7 +142,7 @@ try{
  });
  await check('reset restores every query filter',async()=>{
    await date(page,'2026-09-10');await page.locator('#campus').selectOption('04');await setPeriods(page,[3,6]);
-   await page.locator('#building').selectOption('04/11');await page.locator('#search').fill('111');await page.locator('#capacity').selectOption('60');
+   await page.locator('#more-toggle').click();await page.locator('#building').selectOption('04/11');await page.locator('#search').fill('111');await page.locator('#capacity').selectOption('60');
    await page.locator('#reset-filters').click();await settled(page);
    assert.equal(await page.locator('#date').inputValue(),'2026-09-08');assert.equal(await page.locator('#campus').inputValue(),'');
    assert.equal(await page.locator('#building').inputValue(),'');assert.equal(await page.locator('#search').inputValue(),'');assert.equal(await page.locator('#capacity').inputValue(),'0');
@@ -206,7 +206,7 @@ try{
    await p.screenshot({path:'artifacts/mobile.png'});
    await p.locator('#load-more').scrollIntoViewIfNeeded();
    await p.waitForFunction(()=>document.querySelectorAll('.room-card').length===48);
-   await p.locator('#capacity').scrollIntoViewIfNeeded();
+   await p.locator('#more-toggle').click();await p.locator('#capacity').scrollIntoViewIfNeeded();
    await p.locator('#capacity').selectOption('30');await ready(p);
    assert.equal(await p.locator('.room-card').count(),24);
    await p.locator('.room-card button').first().click();assert.equal(await p.locator('#room-dialog').isVisible(),true);
@@ -224,3 +224,4 @@ try{
  await writeFile('artifacts/browser-results.json',JSON.stringify({passed:true,checks:results,uncaughtErrors:errors},null,2));
  console.log(`BROWSER VERIFIED ${results.length} checks, no uncaught errors`);
 }finally{await browser.close();}
+
