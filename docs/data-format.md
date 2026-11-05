@@ -9,7 +9,7 @@
 | `rooms.json` | 学校教室ID、校区、楼栋、房间、容量、类型、资源类别 |
 | `term.json` | 官方接口返回的开课日、20周、13节及考试节次对应关系 |
 | `days/YYYY-MM-DD.json` | 每间教室当天的空闲、占用、未知节次及连续空闲区间 |
-| `coverage.json` | 日期和楼栋覆盖情况、缺失项、异常、采集时间 |
+| `coverage.json` | 日期和楼栋覆盖情况、缺失项、异常、原始快照采集时间 |
 | `schema.json` | 格式版本、教室目录摘要及节次编码说明 |
 
 开始使用前，检查 `coverage.json` 的 `complete` 为 `true`。同时检查 `unknownRoomDays` 和 `anomalies`；即使数据已采全，也不能把无法解析的状态当作空闲。
@@ -42,7 +42,7 @@ const available = (roomDay.freeMask & required) === required;
 - `virtual`：网络、虚拟、直播等资源，排除自习推荐。
 - `sports`：体育场地，排除自习推荐。
 
-无已记录占用不代表门已开、允许自习或没有临时活动。网站应展示采集时间；未来调课、考试和借用变更需要刷新数据。
+无已记录占用不代表门已开、允许自习或没有临时活动。网站展示的 `lastCapture` 是包内原始快照中最晚一次内容采集时间；内容未变化的刷新会保留旧 `capturedAt`，本轮是否检查过应查看 `data/semester/manifest.json` 的 `finishedAt`。未来调课、考试和借用变更需要刷新数据。
 
 ## 复核依据
 

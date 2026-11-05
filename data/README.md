@@ -9,6 +9,6 @@
 - [数据格式](../docs/data-format.md)：目录、节次掩码与类别说明。
 - [刷新与采集](../docs/collection.md)、[网站发布](../docs/deployment.md)。
 
-在仓库根目录执行 `node verify-dataset.mjs` 检查此快照。更新时间使用 `lastCapture`；它是包内最晚一条查询的时间，不能代表所有记录都在同一时刻抓取。
+在仓库根目录执行 `node verify-dataset.mjs` 检查此快照。网站显示的采集时间使用 `lastCapture`；它是包内原始快照中最晚一次内容采集时间。内容未变化的刷新会保留旧 `capturedAt`，因此它不能代表本轮完整检查时间；本轮运行时间查看 `semester/manifest.json` 的 `startedAt` / `finishedAt`。
 
 学校来源数据不因项目代码采用 MIT 而改变原有权利和使用条件。无已记录占用不代表实际开放；网站不推荐虚拟、体育及专用资源，目录外的占用编号仅保留供复核。

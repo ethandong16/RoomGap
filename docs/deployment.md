@@ -104,7 +104,7 @@ git push origin main
 
 ## 网站底部的时间
 
-页面显示 `data/dataset/coverage.json` 中的 `lastCapture`，转换为北京时间。它是本包内最晚一条采集记录的时间；最早时间是 `firstCapture`，断点续采可能产生跨度较大的采集区间。
+页面显示 `data/dataset/coverage.json` 中的 `lastCapture`，转换为北京时间。它是本包内原始快照中最晚一次内容采集时间；内容未变化的刷新会保留旧 `capturedAt`。最早时间是 `firstCapture`，断点续采可能产生跨度较大的采集区间；本轮完整检查时间查看 `data/semester/manifest.json` 的 `startedAt` / `finishedAt`。
 
 仅重新生成 `dist` 不会改变采集时间。日期未更新时，依次核对采集是否刷新了已有记录、新数据是否提交到部署分支、部署是否成功，以及线上 `dataset.json` 是否指向新版本。
 

@@ -1,7 +1,8 @@
-import {mkdir,writeFile,readFile} from 'node:fs/promises';
+import {mkdir,readFile} from 'node:fs/promises';
 import {setTimeout as delay} from 'node:timers/promises';
 import {parseClassroomIndex,parseClassroomSearch} from './classroom-page.mjs';
 import {cookieHeaderForUrl} from './cookie-header.mjs';
+import {writeTextIfChanged,writeDayIfChanged} from './write-if-changed.mjs';
 const base='https://jwxtxs.tust.edu.cn';
 const index=base+'/student/teachingResources/classroomUseStatus/index';
 const endpoint=base+'/student/teachingResources/classroomUseStatus/jasInfo';
@@ -10,7 +11,7 @@ const userAgent='Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 Chrome/120.
 const resume=process.env.ROOMGAP_REFRESH==='0';
 await mkdir(out+'/days',{recursive:true});
 let manifest;
-const save=async(name,value)=>writeFile(`${out}/${name}`,JSON.stringify(value),'utf8');
+const save=async(name,value)=>writeTextIfChanged(`${out}/${name}`,JSON.stringify(value));
 const id=r=>[r.campusNumber,r.teachingBuildingNumber,r.classroomNumber].join('/');
 try {
  const cookies=JSON.parse(await readFile(process.env.ROOMGAP_COOKIES_FILE||'.roomgap-auth.json','utf8'));
@@ -91,7 +92,7 @@ try {
     const prefix=`${b.campusCode}/${b.buildingCode}/`;
     if(busy.some(r=>!r.roomId.startsWith(prefix)))throw Error('Occupancy returned from another building');
     const orphanRoomIds=[...new Set(busy.filter(r=>!actual.has(r.roomId)).map(r=>r.roomId))];
-    await save(file,{complete:true,date,campusCode:b.campusCode,buildingCode:b.buildingCode,buildingIndex:b.rowIndex,roomCount:actual.size,teachingWeek:Number(d.jxzc),weekday:Number(d.week),capturedAt:new Date().toISOString(),orphanRoomIds,busy});
+    await writeDayIfChanged(`${out}/${file}`,{complete:true,date,campusCode:b.campusCode,buildingCode:b.buildingCode,buildingIndex:b.rowIndex,roomCount:actual.size,teachingWeek:Number(d.jxzc),weekday:Number(d.week),capturedAt:new Date().toISOString(),orphanRoomIds,busy});
     manifest.completedQueries++;
     if(manifest.completedQueries%50===0){console.log(`PROGRESS ${manifest.completedQueries}/${manifest.expectedQueries} ${b.campus} ${b.name||b.buildingCode} ${date}`);}
    }catch(e){manifest.failures.push({building:b.rowIndex,date,message:e.message});console.error('FAILED',b.rowIndex,date,e.message);stopped=true;}

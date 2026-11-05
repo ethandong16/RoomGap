@@ -1,7 +1,8 @@
-import {readFile,readdir,mkdir,writeFile} from 'node:fs/promises';
+import {readFile,readdir,mkdir} from 'node:fs/promises';
 import {roomDay,FULL_DAY_MASK} from './semester-model.mjs';
 import {applyAccessPolicy} from './room-policy.mjs';
 import {createHash} from 'node:crypto';
+import {writeTextIfChanged} from './write-if-changed.mjs';
 const source='data/semester',dest='data/dataset';
 const load=async path=>JSON.parse(await readFile(path,'utf8'));
 const [rooms,buildings,term]=await Promise.all(['rooms','buildings','term'].map(n=>load(`${source}/${n}.json`)));
@@ -22,8 +23,8 @@ const {rooms:roster,unmatchedBuildings}=applyAccessPolicy(classifiedRooms,access
 await mkdir(`${dest}/days`,{recursive:true});
 const rosterJson=JSON.stringify(roster);
 const catalogDigest=createHash('sha256').update(rosterJson).digest('hex');
-await writeFile(`${dest}/rooms.json`,rosterJson);
-await writeFile(`${dest}/term.json`,JSON.stringify(term));
+await writeTextIfChanged(`${dest}/rooms.json`,rosterJson);
+await writeTextIfChanged(`${dest}/term.json`,JSON.stringify(term));
 const files=(await readdir(`${source}/days`)).filter(f=>/^\d+-\d{4}-\d{2}-\d{2}\.json$/.test(f));
 const dayFiles=new Map();for(const f of files){const date=f.match(/\d{4}-\d{2}-\d{2}/)[0];if(!dayFiles.has(date))dayFiles.set(date,[]);dayFiles.get(date).push(f);}
 const dates=Array.from({length:140},(_,i)=>new Date(Date.parse(`${term.startDate}T00:00:00Z`)+i*86400000).toISOString().slice(0,10));
@@ -55,12 +56,12 @@ for(const date of dates){
  for(const key of byBuilding.keys())if(!seen.has(key))report.missing.push({date,building:key});
  report.unknownRoomDays+=result.filter(r=>r.unknownMask!==0).length;
  report.dateCoverage.push({date,buildings:seen.size,expected:byBuilding.size});
- await writeFile(`${dest}/days/${date}.json`,JSON.stringify({date,catalogDigest,rooms:result}));
+ await writeTextIfChanged(`${dest}/days/${date}.json`,JSON.stringify({date,catalogDigest,rooms:result}));
 }
 report.orphanRoomIds=[...orphans].sort();report.occupiedRoomDays=occupiedRoomDays;report.firstCapture=firstCapture;report.lastCapture=lastCapture;
 report.complete=report.verifiedBuildingDays===report.expectedBuildingDays&&!report.missing.length;
 report.resourceKinds=roster.reduce((m,r)=>(m[r.resourceKind]=(m[r.resourceKind]||0)+1,m),{});
 report.accessPolicy={version:accessPolicy.version||null,eligibleRooms:roster.filter(r=>r.candidateEligible).length,excludedRooms:roster.filter(r=>!r.candidateEligible).length,unmatchedBuildings};
-await writeFile(`${dest}/coverage.json`,JSON.stringify(report,null,2));
-await writeFile(`${dest}/schema.json`,JSON.stringify({version:1,catalogDigest,periods:13,roomReference:'room字段为rooms.json的零起始数组索引',maskEncoding:'第n节对应1<<(n-1)；13节全为1是8191',intervalEncoding:'freeIntervals为闭区间[startPeriod,endPeriod]',missingData:'未知节次不得当作空闲',timezone:'Asia/Shanghai'},null,2));
+await writeTextIfChanged(`${dest}/coverage.json`,JSON.stringify(report,null,2));
+await writeTextIfChanged(`${dest}/schema.json`,JSON.stringify({version:1,catalogDigest,periods:13,roomReference:'room字段为rooms.json的零起始数组索引',maskEncoding:'第n节对应1<<(n-1)；13节全为1是8191',intervalEncoding:'freeIntervals为闭区间[startPeriod,endPeriod]',missingData:'未知节次不得当作空闲',timezone:'Asia/Shanghai'},null,2));
 console.log(JSON.stringify({...report,dateCoverage:undefined,missing:report.missing.length,anomalies:report.anomalies.length,orphanRoomIds:report.orphanRoomIds.length}));

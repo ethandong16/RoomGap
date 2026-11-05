@@ -4,7 +4,7 @@
 
 ## 手动执行
 
-在项目目录运行（当前测试机是 `/root/RoomGap`）。默认完整刷新，会重新查询全部楼栋日数据，以便纳入最新调课、考试和借用安排：
+在项目目录运行（当前测试机是 `/root/RoomGap`）。默认完整刷新，会重新查询全部楼栋日数据，以便纳入最新调课、考试和借用安排；查询结果与已有快照内容相同时只保留旧文件，不重写它：
 
 ```bash
 ./run-collect.sh
@@ -31,8 +31,8 @@ tail -f logs/collect.log
 
 1. 读取配置、检查 Node / 构建依赖，获取任务锁。
 2. 会话失效时优先用账号密码 + 短信验证码自动登录（可关闭）；失败后回落到扫码。登录成功后直接通过 HTTP 读取教学楼目录、查询表单和元数据；登录失效时停止并要求重新扫码。
-3. HTTP 会话抓取逐楼逐日数据；并发 3，请求启动间隔约 100 ms，单请求超时 30 秒，最多尝试 3 次。
-4. `build-dataset.mjs` 调用 `semester-model.mjs` 计算节次状态。
+3. HTTP 会话抓取逐楼逐日数据；并发 3，请求启动间隔约 100 ms，单请求超时 30 秒，最多尝试 3 次。完整刷新仍会重新查询全部日期，但只忽略顶层 `capturedAt` 比较快照；内容未变化时保留旧文件和旧采集时间，内容变化或旧文件缺失/损坏时才重写。数组顺序变化目前按变化处理。
+4. `build-dataset.mjs` 调用 `semester-model.mjs` 计算节次状态；派生文件内容不变时也跳过写入。
 5. `verify-dataset.mjs` 验证覆盖、目录摘要及未知状态。
 6. 若设置 `ROOMGAP_GIT_PUSH=1`，提交数据并推送 GitHub；全部成功后输出 `SUCCESS`。
 
@@ -40,7 +40,7 @@ tail -f logs/collect.log
 
 采集、数据构建、可选 Git 推送前会检查可用空间，默认至少 **128 MiB**（`ROOMGAP_MIN_FREE_MB`）。不足时退出，日志和 Bark 失败通知带有 `DISK_LOW`、当前容量和阈值；不会为了继续运行而删除原始数据。该检查在阶段边界执行，不会阻止其他程序在运行中占用磁盘。
 
-脚本输出 `data/semester/manifest.json` 和 `data/dataset/coverage.json`；没有 `data/dataset/manifest.json`。运行失败时保留已完成的查询文件，便于排查和恢复。
+脚本输出 `data/semester/manifest.json` 和 `data/dataset/coverage.json`；没有 `data/dataset/manifest.json`。运行失败时保留已完成的查询文件，便于排查和恢复。`manifest.startedAt` / `finishedAt` 记录本轮运行；`coverage.lastCapture` 仍表示包内原始快照中最晚一次内容采集时间，不表示本轮完整刷新检查时间。每轮运行的 manifest 和 coverage 构建时间仍可能产生小型元数据 diff，但不再因 `capturedAt` 改变而重写全部楼栋日文件。
 
 ## 定时刷新
 

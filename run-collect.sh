@@ -75,7 +75,7 @@ fi
 if [[ -x /opt/node20/bin/node ]]; then export PATH="/opt/node20/bin:${PATH}"; fi
 command -v node >/dev/null || { echo 'ERROR: Node.js 20+ is required' >&2; exit 1; }
 node -e 'if(Number(process.versions.node.split(".")[0])<20)throw Error("Node.js 20+ is required")'
-for file in collect-api.mjs classroom-page.mjs cookie-header.mjs build-dataset.mjs verify-dataset.mjs semester-model.mjs scripts/check-space.mjs; do
+for file in collect-api.mjs classroom-page.mjs cookie-header.mjs write-if-changed.mjs build-dataset.mjs verify-dataset.mjs semester-model.mjs scripts/check-space.mjs; do
   [[ -f "$file" ]] || { echo "ERROR: missing $file; deploy the complete repository" >&2; exit 1; }
   node --check "$file"
 done

@@ -57,7 +57,7 @@ node scripts/serve-site.mjs
 
 `run-collect.sh` 完成采集、数据构建和校验。默认不提交或推送；完整 Git 安装可选择 `ROOMGAP_GIT_PUSH=1` 自动提交数据并推送 `main`，触发已配置的 Cloudflare Pages Git 部署。Bark 的“采集完成”或“数据已推送”不表示网站已经发布。
 
-网站底部的更新时间取自 `coverage.lastCapture`，按北京时间显示；仅重新构建网页不会改变实际采集时间。
+网站底部显示的采集时间取自 `coverage.lastCapture`，按北京时间显示；它是包内原始快照中最晚一次内容采集时间。内容未变化的刷新会保留旧时间，本轮检查时间请查看 `data/semester/manifest.json` 的 `startedAt` / `finishedAt`；仅重新构建网页不会改变实际采集时间。
 
 ## 项目结构
 

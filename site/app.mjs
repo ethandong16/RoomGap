@@ -312,7 +312,7 @@ async function initialize() {
     $('sync-label').textContent='数据已同步';
     $('term-range').textContent=`${term.startDate.replaceAll('-','.')} — ${term.endDate.replaceAll('-','.')}`;
     const captured=new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(coverage.lastCapture));
-    $('data-meta').textContent=`数据更新于 ${captured}（北京时间）`;
+    $('data-meta').textContent=`数据快照采集于 ${captured}（北京时间）`;
     $('filters').disabled=false;
     await loadSelectedDay();
   } catch(error) {

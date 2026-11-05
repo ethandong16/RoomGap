@@ -24,7 +24,7 @@
 node -e 'const fs=require("fs");const m=JSON.parse(fs.readFileSync("data/semester/manifest.json"));const c=JSON.parse(fs.readFileSync("data/dataset/coverage.json"));console.log({complete:m.complete,completed:m.completedQueries,expected:m.expectedQueries,failures:m.failures.length,datasetComplete:c.complete,unknown:c.unknownRoomDays,lastCapture:c.lastCapture})'
 ```
 
-采集 manifest 的 `complete=true` 只代表原始查询完整。`node verify-dataset.mjs` 成功才表示查询数据也通过校验。`lastCapture` 是 UTC 字符串，网页显示时转为北京时间。
+采集 manifest 的 `complete=true` 只代表原始查询完整。`node verify-dataset.mjs` 成功才表示查询数据也通过校验。`lastCapture` 是原始快照中最晚一次内容采集的 UTC 字符串，网页显示时转为北京时间；内容未变化的刷新会保留旧时间，本轮检查时间查看 manifest 的 `startedAt` / `finishedAt`。
 
 ## 抓取成功，构建失败
 
@@ -41,7 +41,7 @@ node verify-dataset.mjs
 
 先检查日志中 `FAILED` 的原因。无头模式遇到登录页会立即退出并要求更新 Cookie；按 [登录态维护](login.md) 完成后重启任务。
 
-对采集留下的缺失文件，可用 `ROOMGAP_REFRESH=0 ./run-collect.sh` 断点续采。若完整刷新期间中断，已有文件可能是新旧时间的混合；续采只检查完整性，不会重新查询仍完整的旧文件。要求本轮全量新鲜时，再执行一次默认完整刷新，并核对 `firstCapture` / `lastCapture`。
+对采集留下的缺失文件，可用 `ROOMGAP_REFRESH=0 ./run-collect.sh` 断点续采。若完整刷新期间中断，已有文件可能是新旧时间的混合；续采只检查完整性，不会重新查询仍完整的旧文件。默认完整刷新会重新查询全部楼栋日，但内容未变化时保留旧文件和旧 `capturedAt`；若要判断本轮是否完成检查，核对 manifest 的 `startedAt` / `finishedAt`，不要把 `firstCapture` / `lastCapture` 当作本轮检查时间。
 
 不要在同一目录并行构建、更新代码、导入数据和采集。需要停止后台任务时先确认具体进程号，只终止对应任务；中止后检查进程是否退出，再继续操作。
 
