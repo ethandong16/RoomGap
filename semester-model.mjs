@@ -21,7 +21,11 @@ export function roomDay(occupancies, term) {
   // Exam session codes above the 13 teaching periods are time-slice codes: the
   // site enumerates every slice an exam covers, including slices that land in
   // the break between two periods. Codes missing from the official mapping sit
-  // inside such a break, so they span both adjacent periods.
+  // inside such a break, so they span both adjacent periods. Slices below the
+  // first mapped code fall before the first period and cover no period cell.
+  // Code 13 is either a legacy period number or a slice; treat it as a slice
+  // only when the same room-day also contains the adjacent slice 14.
+  const sliceStarts=new Set(occupancies.filter(r=>r.sessionType==='02'&&Number.isInteger(r.start)&&r.start>13&&r.length===1).map(r=>r.start));
   const examMap=()=>{
     const map=new Map();
     for(const m of term.examMappings){
@@ -43,11 +47,12 @@ export function roomDay(occupancies, term) {
       if(mapped!==undefined){
         start=mapped;
         end=r.start>13?start+r.length-1:start-1+r.length*Number(type.multiplier);
-      }else if(r.start>13){
+      }else if(r.start>13||(r.start===13&&r.length===1&&sliceStarts.has(14))){
         const codes=sortedCodes();
         const lower=codes.filter(code=>code<r.start).at(-1);
         const upper=codes.find(code=>code>r.start);
-        if(lower===undefined||upper===undefined){unknownMask=FULL_DAY_MASK;anomalies.push('missing_exam_mapping');continue;}
+        if(upper===undefined){unknownMask=FULL_DAY_MASK;anomalies.push('missing_exam_mapping');continue;}
+        if(lower===undefined)continue;
         start=Math.min(periods().get(lower),periods().get(upper));
         end=Math.max(periods().get(lower),periods().get(upper));
       }else{

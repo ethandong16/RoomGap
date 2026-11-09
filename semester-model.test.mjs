@@ -41,6 +41,30 @@ test('time-slice exam codes cover every spanned period across break codes',()=>{
  assert.equal(day.occupiedMask,(1<<6)|(1<<7));assert.equal(day.unknownMask,0);
  assert.deepEqual(day.freeIntervals,[[1,6],[9,13]]);assert.deepEqual(day.anomalies,[]);
 });
+test('time-slice exam codes below the first mapped code occupy no period',()=>{
+ const sliced={...term,examMappings:[
+  ...[100,101,102].map(ksjc=>({xqdm:'1',xqlxdm:'1',ksjc,skjc:7})),
+  ...[104,105,106].map(ksjc=>({xqdm:'1',xqlxdm:'1',ksjc,skjc:8})),
+ ]};
+ const day=roomDay([97,98,99,100,101,102,103,104,105,106].map(start=>({sessionType:'02',start,length:1,module:'07'})),sliced);
+ assert.equal(day.occupiedMask,(1<<6)|(1<<7));assert.equal(day.unknownMask,0);
+ assert.deepEqual(day.freeIntervals,[[1,6],[9,13]]);assert.deepEqual(day.anomalies,[]);
+});
+test('time slice 13 beside slice 14 occupies no period',()=>{
+ const sliced={...term,examMappings:[17,18,19].map(ksjc=>({xqdm:'1',xqlxdm:'1',ksjc,skjc:1}))};
+ const day=roomDay([13,14,15,16,17,18,19].map(start=>({sessionType:'02',start,length:1,module:'07'})),sliced);
+ assert.equal(day.occupiedMask,1);assert.equal(day.unknownMask,0);
+ assert.deepEqual(day.freeIntervals,[[2,13]]);assert.deepEqual(day.anomalies,[]);
+});
+test('legacy exam period 13 without an adjacent slice stays unknown',()=>{
+ const mixed={...term,examMappings:[100,101,102].map(ksjc=>({xqdm:'1',xqlxdm:'1',ksjc,skjc:7}))};
+ const day=roomDay([
+  {sessionType:'02',start:13,length:1,module:'07'},
+  {sessionType:'02',start:100,length:1,module:'07'},
+ ],mixed);
+ assert.equal(day.unknownMask,FULL_DAY_MASK);assert.equal(day.freeMask,0);
+ assert.deepEqual(day.anomalies,['missing_exam_mapping']);
+});
 test('time-slice exam codes outside the mapped range stay unknown',()=>{
  const sliced={...term,examMappings:[{xqdm:'1',xqlxdm:'1',ksjc:100,skjc:7}]};
  const day=roomDay([{sessionType:'02',start:200,length:1,module:'07'}],sliced);
