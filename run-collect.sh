@@ -36,13 +36,18 @@ notify() {
     "$ROOMGAP_BARK_URL" >/dev/null || echo "WARN: Bark notification failed" >&2
 }
 
+catalog_summary() {
+  command -v node >/dev/null 2>&1 || return 0
+  node -e 'const fs=require("fs");let text="";try{const change=JSON.parse(fs.readFileSync("data/semester/manifest.json","utf8")).catalogChange;if(change&&!change.initial){const parts=[];if(change.buildingsAdded||change.buildingsRemoved)parts.push(`楼栋 +${change.buildingsAdded}/-${change.buildingsRemoved}`);if(change.roomsAdded||change.roomsRemoved)parts.push(`教室 +${change.roomsAdded}/-${change.roomsRemoved}`);if(change.indexChanges)parts.push(`索引调整 ${change.indexChanges}`);if(parts.length)text=` 目录变化：${parts.join("，")}。`;}}catch{}process.stdout.write(text);' 2>/dev/null || true
+}
+
 stage="依赖检查"
 failure_detail=""
 on_exit() {
   local code=$?
   if [[ $code -ne 0 && $code -ne 75 ]]; then
     echo "ERROR: ${stage} failed (exit ${code})" >&2
-    notify "RoomGap 任务失败" "阶段：${stage}；退出码 ${code}。${failure_detail} 请查看本次运行日志。"
+    notify "RoomGap 任务失败" "阶段：${stage}；退出码 ${code}。${failure_detail}$(catalog_summary) 请查看本次运行日志。"
   fi
   if [[ "${ROOMGAP_GIT_PUSH_ONLY:-0}" == 1 ]]; then
     printf '[%s] END: GitHub push-only (exit %d)\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$code"
@@ -75,7 +80,7 @@ fi
 if [[ -x /opt/node20/bin/node ]]; then export PATH="/opt/node20/bin:${PATH}"; fi
 command -v node >/dev/null || { echo 'ERROR: Node.js 20+ is required' >&2; exit 1; }
 node -e 'if(Number(process.versions.node.split(".")[0])<20)throw Error("Node.js 20+ is required")'
-for file in collect-api.mjs classroom-page.mjs cookie-header.mjs write-if-changed.mjs build-dataset.mjs verify-dataset.mjs semester-model.mjs scripts/check-space.mjs; do
+for file in collect-api.mjs classroom-page.mjs cookie-header.mjs write-if-changed.mjs build-dataset.mjs verify-dataset.mjs semester-model.mjs catalog-change.mjs scripts/check-space.mjs; do
   [[ -f "$file" ]] || { echo "ERROR: missing $file; deploy the complete repository" >&2; exit 1; }
   node --check "$file"
 done
@@ -240,4 +245,4 @@ if [[ "${ROOMGAP_GIT_PUSH:-0}" == "1" ]]; then
   notify "RoomGap 数据已推送" "数据已同步到 GitHub；网站是否发布成功请查看托管平台状态。"
 fi
 echo 'SUCCESS: collection, dataset build and verification completed'
-notify "RoomGap 采集完成" "$(date '+%F %T %Z')，数据已通过完整性校验。"
+notify "RoomGap 采集完成" "$(date '+%F %T %Z')，数据已通过完整性校验。$(catalog_summary)"

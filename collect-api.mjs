@@ -3,6 +3,7 @@ import {setTimeout as delay} from 'node:timers/promises';
 import {parseClassroomIndex,parseClassroomSearch} from './classroom-page.mjs';
 import {cookieHeaderForUrl} from './cookie-header.mjs';
 import {writeTextIfChanged,writeDayIfChanged,removeStaleDaySnapshots} from './write-if-changed.mjs';
+import {compareCatalogs,catalogChanged,catalogShrinkError} from './catalog-change.mjs';
 const base='https://jwxtxs.tust.edu.cn';
 const index=base+'/student/teachingResources/classroomUseStatus/index';
 const endpoint=base+'/student/teachingResources/classroomUseStatus/jasInfo';
@@ -12,6 +13,7 @@ const resume=process.env.ROOMGAP_REFRESH==='0';
 await mkdir(out+'/days',{recursive:true});
 let manifest;
 const save=async(name,value)=>writeTextIfChanged(`${out}/${name}`,JSON.stringify(value));
+const readJsonIfExists=async path=>{try{return JSON.parse(await readFile(path,'utf8'));}catch(error){if(error.code==='ENOENT'||error instanceof SyntaxError)return null;throw error;}};
 const id=r=>[r.campusNumber,r.teachingBuildingNumber,r.classroomNumber].join('/');
 try {
  const cookies=JSON.parse(await readFile(process.env.ROOMGAP_COOKIES_FILE||'.roomgap-auth.json','utf8'));
@@ -66,8 +68,17 @@ try {
   extra.roomIds.push(room.id);
  }
  const active=groups.filter(b=>b.roomIds.length);
+ const catalogBuildings=buildings.map(b=>({...b,roomCount:groups.find(g=>g.rowIndex===b.rowIndex)?.roomIds.length||0}));
+ const previousRooms=await readJsonIfExists(`${out}/rooms.json`);
+ const previousBuildings=await readJsonIfExists(`${out}/buildings.json`);
+ const catalogChange=compareCatalogs({rooms:previousRooms,buildings:previousBuildings},{rooms:roster,buildings:catalogBuildings});
+ if(catalogChanged(catalogChange))console.log('CATALOG_CHANGED '+JSON.stringify(catalogChange));
+ const rawShrinkLimit=process.env.ROOMGAP_CATALOG_SHRINK_LIMIT;
+ const shrinkLimit=(rawShrinkLimit===undefined||rawShrinkLimit==='')?0.05:Number(rawShrinkLimit);
+ const shrinkError=catalogShrinkError(catalogChange,{limit:shrinkLimit,allow:process.env.ROOMGAP_ALLOW_CATALOG_SHRINK==='1'});
+ if(shrinkError){console.error(shrinkError);throw Error(shrinkError);}
  await save('rooms.json',roster);
- await save('buildings.json',buildings.map(b=>({...b,roomCount:groups.find(g=>g.rowIndex===b.rowIndex)?.roomIds.length||0})));
+ await save('buildings.json',catalogBuildings);
  await save('term.json',{id:term.zxjxjhh,startDate:dates[0],endDate:dates.at(-1),weeks:20,daysPerWeek:Number(term.codeXqb.zts),source:'official_query_response',periodsPerDay:sections[0].tjc,sections,roomTypes:roomTypes.map(t=>({code:t.classroomtypecode,name:t.classroomtypename})),sectionTypes:catalog.sectionType.map(s=>({code:s.jclxdm,name:s.jclxmc,multiplier:s.jcxss})),examMappings:catalog.codeJclxdzb.map(x=>x.id),termSeason:term.xqdm,termType:term.xqlxdm});
  const tasks=[];let cached=0;
  const removed=await removeStaleDaySnapshots(`${out}/days`,active.map(b=>b.rowIndex),dates);
@@ -77,7 +88,7 @@ try {
   try{const old=JSON.parse(await readFile(`${out}/${file}`,'utf8'));if(resume&&old.complete&&old.date===date&&old.campusCode===b.campusCode&&old.buildingCode===b.buildingCode&&old.roomCount===b.roomIds.length){cached++;continue;}}catch{}
   tasks.push({b,date,file});
  }
- manifest={complete:false,startedAt:new Date().toISOString(),mode:resume?'resume':'refresh',range:{start:dates[0],end:dates.at(-1)},roomCount:roster.length,buildingsWithRooms:active.length,buildingsWithoutRooms:groups.filter(b=>!b.roomIds.length),expectedQueries:active.length*dates.length,completedQueries:cached,reusedQueries:cached,failures:[],source:endpoint};
+ manifest={complete:false,startedAt:new Date().toISOString(),mode:resume?'resume':'refresh',range:{start:dates[0],end:dates.at(-1)},roomCount:roster.length,buildingsWithRooms:active.length,buildingsWithoutRooms:groups.filter(b=>!b.roomIds.length),expectedQueries:active.length*dates.length,completedQueries:cached,reusedQueries:cached,failures:[],catalogChange,source:endpoint};
  await save('manifest.json',manifest);
  console.log(`START ${resume?'resume':'refresh'}: ${roster.length} rooms, ${active.length} buildings, ${tasks.length} pending day queries, ${cached} reused`);
  let cursor=0,stopped=false,nextRequestAt=0;
