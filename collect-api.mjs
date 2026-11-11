@@ -2,7 +2,7 @@ import {mkdir,readFile} from 'node:fs/promises';
 import {setTimeout as delay} from 'node:timers/promises';
 import {parseClassroomIndex,parseClassroomSearch} from './classroom-page.mjs';
 import {cookieHeaderForUrl} from './cookie-header.mjs';
-import {writeTextIfChanged,writeDayIfChanged} from './write-if-changed.mjs';
+import {writeTextIfChanged,writeDayIfChanged,removeStaleDaySnapshots} from './write-if-changed.mjs';
 const base='https://jwxtxs.tust.edu.cn';
 const index=base+'/student/teachingResources/classroomUseStatus/index';
 const endpoint=base+'/student/teachingResources/classroomUseStatus/jasInfo';
@@ -70,6 +70,8 @@ try {
  await save('buildings.json',buildings.map(b=>({...b,roomCount:groups.find(g=>g.rowIndex===b.rowIndex)?.roomIds.length||0})));
  await save('term.json',{id:term.zxjxjhh,startDate:dates[0],endDate:dates.at(-1),weeks:20,daysPerWeek:Number(term.codeXqb.zts),source:'official_query_response',periodsPerDay:sections[0].tjc,sections,roomTypes:roomTypes.map(t=>({code:t.classroomtypecode,name:t.classroomtypename})),sectionTypes:catalog.sectionType.map(s=>({code:s.jclxdm,name:s.jclxmc,multiplier:s.jcxss})),examMappings:catalog.codeJclxdzb.map(x=>x.id),termSeason:term.xqdm,termType:term.xqlxdm});
  const tasks=[];let cached=0;
+ const removed=await removeStaleDaySnapshots(`${out}/days`,active.map(b=>b.rowIndex),dates);
+ if(removed.length)console.log(`REMOVED ${removed.length} stale day snapshot(s) at inactive building indexes`);
  for(const b of active)for(const date of dates){
   const file=`days/${b.rowIndex}-${date}.json`;
   try{const old=JSON.parse(await readFile(`${out}/${file}`,'utf8'));if(resume&&old.complete&&old.date===date&&old.campusCode===b.campusCode&&old.buildingCode===b.buildingCode&&old.roomCount===b.roomIds.length){cached++;continue;}}catch{}

@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,readFile,rm,writeFile} from 'node:fs/promises';
+import {mkdtemp,readFile,readdir,rm,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
-import {daySnapshotsEqualIgnoringCapturedAt,hasValidCapturedAt,writeDayIfChanged,writeTextIfChanged} from '../write-if-changed.mjs';
+import {daySnapshotsEqualIgnoringCapturedAt,hasValidCapturedAt,removeStaleDaySnapshots,writeDayIfChanged,writeTextIfChanged} from '../write-if-changed.mjs';
 
 const snapshot=overrides=>({
  complete:true,
@@ -74,4 +74,12 @@ test('capturedAt validation accepts parseable dates only',()=>{
  assert.equal(hasValidCapturedAt({capturedAt:'not-a-date'}),false);
  assert.equal(hasValidCapturedAt({}),false);
  assert.equal(hasValidCapturedAt(null),false);
+});
+
+test('stale day snapshots at inactive building indexes are removed only in range',async t=>{
+ const root=await mkdtemp(path.join(tmpdir(),'roomgap-stale-test-'));
+ t.after(()=>rm(root,{recursive:true,force:true}));
+ for(const file of ['24-2026-08-31.json','25-2026-08-31.json','26-2026-08-31.json','25-2026-09-01.json','25-2026-09-02.json','notes-2026-08-31.json'])await writeFile(path.join(root,file),file,'utf8');
+ assert.deepEqual(await removeStaleDaySnapshots(root,[24,26],['2026-08-31','2026-09-01']),['25-2026-08-31.json','25-2026-09-01.json']);
+ assert.deepEqual((await readdir(root)).sort(),['24-2026-08-31.json','25-2026-09-02.json','26-2026-08-31.json','notes-2026-08-31.json']);
 });

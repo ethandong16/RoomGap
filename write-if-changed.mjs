@@ -1,4 +1,5 @@
-import {readFile,writeFile} from 'node:fs/promises';
+import {readFile,readdir,rm,writeFile} from 'node:fs/promises';
+import {join} from 'node:path';
 import {isDeepStrictEqual} from 'node:util';
 
 async function readExisting(path) {
@@ -46,4 +47,18 @@ export async function writeDayIfChanged(path,candidate) {
  if(oldText===text)return false;
  await writeFile(path,text,'utf8');
  return true;
+}
+
+// Building indexes come from the school's index page and can shift when buildings
+// are added or removed. A stale snapshot at a now-inactive index duplicates a room
+// key or carries an outdated room count, which makes the dataset build fail.
+export async function removeStaleDaySnapshots(directory,activeIndexes,dates) {
+ const active=new Set(activeIndexes),wanted=new Set(dates),removed=[];
+ for(const file of await readdir(directory)){
+  const match=/^(\d+)-(\d{4}-\d{2}-\d{2})\.json$/.exec(file);
+  if(!match||!wanted.has(match[2])||active.has(Number(match[1])))continue;
+  await rm(join(directory,file));
+  removed.push(file);
+ }
+ return removed.sort();
 }
