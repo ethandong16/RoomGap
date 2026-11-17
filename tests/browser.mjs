@@ -2,7 +2,7 @@ import {mkdir,writeFile} from 'node:fs/promises';
 import {pathToFileURL} from 'node:url';
 import assert from 'node:assert/strict';
 const {chromium}=await import(process.env.ROOMGAP_PLAYWRIGHT_MODULE?pathToFileURL(process.env.ROOMGAP_PLAYWRIGHT_MODULE).href:'playwright');
-const browser=await chromium.launch({channel:'chrome',headless:true});
+const browser=await chromium.launch(process.env.ROOMGAP_CHROME_PATH?{executablePath:process.env.ROOMGAP_CHROME_PATH,headless:true,args:['--no-sandbox']}:{channel:'chrome',headless:true});
 const base=process.env.ROOMGAP_TEST_URL||'http://127.0.0.1:4173';
 const results=[],errors=[];
 await mkdir('artifacts',{recursive:true});
@@ -29,12 +29,14 @@ try{
  await page.clock.setFixedTime(new Date('2026-09-08T04:00:00Z'));
  await page.goto(base);await settled(page);
  await check('desktop initial screen and content',async()=>{
-   assert.equal(await page.locator('#candidate-count').textContent(),'384');
+   assert.equal(await page.locator('#candidate-count').textContent(),'390');
    assert.equal(await page.locator('#campus-count').textContent(),'3');
    assert.equal(await page.locator('.period-option').count(),13);
    assert.deepEqual(await page.locator('.period-option[aria-pressed="true"]').evaluateAll(buttons=>buttons.map(button=>Number(button.dataset.period))),[]);
-   assert.equal(await page.locator('#period-selection-count').textContent(),'未选节次');
-   assert.match(await page.locator('#state-panel').textContent(),/请选择节次/);
+   assert.equal(await page.locator('#period-selection-count').textContent(),'不选 = 看今日概览');
+   assert.equal(await page.locator('#overview-grid').isVisible(),true);
+   assert.equal(await page.locator('.building-card').count(),22);
+   assert.match(await page.locator('#results-title').innerText(),/今天，哪里有空/);
    await page.locator('.period-preset').first().click();
    assert.deepEqual(await page.locator('.period-option[aria-pressed="true"]').evaluateAll(buttons=>buttons.map(button=>Number(button.dataset.period))),[1,2,3,4]);
    assert.equal(await page.locator('.period-preset').first().getAttribute('aria-pressed'),'true');
@@ -62,6 +64,29 @@ try{
    await page.waitForFunction(()=>document.querySelector('#back-to-top').dataset.visible==='false');
    await page.locator('.period-clear').click();
  await page.screenshot({path:'artifacts/desktop.png'});
+ });
+ await check('room-first browser exposes buildings, floors and week schedule',async()=>{
+   await page.locator('#view-room').click();
+   await page.waitForFunction(()=>!document.querySelector('#overview-grid').hidden);
+   assert.equal(await page.locator('.building-card').count(),22);
+   await page.locator('#search').fill('201');
+   await page.waitForFunction(()=>document.querySelectorAll('.building-card').length===7);
+   await page.locator('#search').fill('');
+   await page.waitForFunction(()=>document.querySelectorAll('.building-card').length===22);
+   await page.locator('#building').selectOption('02/3');
+   await page.waitForFunction(()=>document.querySelectorAll('.room-card').length>0);
+   assert.equal(await page.locator('.floor-tab').count(),6);
+   assert.match(await page.locator('#room-panel-meta').textContent(),/3号楼/);
+   await page.locator('.floor-tab[data-floor="2"]').click();
+   await page.waitForFunction(()=>document.querySelector('#result-count').textContent==='16 间');
+   assert.match(await page.locator('.room-card h3').first().textContent(),/201/);
+   await page.locator('.room-card button').first().click();
+   await page.waitForSelector('.week-table');
+   assert.equal(await page.locator('.week-cell').count(),91);
+   await page.keyboard.press('Escape');
+   await page.locator('#view-time').click();
+   await page.locator('#building').selectOption('');
+   await page.waitForFunction(()=>!document.querySelector('#overview-grid').hidden);
  });
  await check('theme follows the device and remembers manual choices',async()=>{
    const c=await context({colorScheme:'dark'}),p=await c.newPage();await p.goto(base);await settled(p);
@@ -104,15 +129,18 @@ try{
    assert.equal(new Set(typography.map(style=>style.lineHeight)).size,1);
    assert.deepEqual(await page.locator('#data-note p + p').evaluateAll(elements=>elements.map(element=>getComputedStyle(element).marginTop)),['4px','4px','4px']);
  });
- await check('known 19-room query and combined filters',async()=>{
-   await setPeriods(page,[1,2,3,4]);await ready(page);await date(page,'2026-09-08');await page.locator('#campus').selectOption('04');await count(page,19);
-   await page.locator('#more-toggle').click();await page.locator('#building').selectOption('04/11');await page.locator('#search').fill('111');await page.locator('#capacity').selectOption('100');await count(page,1);
+ await check('known 10-room query and combined filters',async()=>{
+   await setPeriods(page,[1,2,3,4]);await ready(page);await date(page,'2026-09-08');await page.locator('#campus').selectOption('04');await count(page,10);
+   await page.locator('#building').selectOption('04/11');await page.locator('#search').fill('111');await page.locator('#capacity').selectOption('100');await count(page,1);
    assert.match(await page.locator('.room-card h3').textContent(),/111/);
  });
- await check('keyboard details, 13 states, Escape and focus restoration',async()=>{
+ await check('keyboard details, week schedule, Escape and focus restoration',async()=>{
    const trigger=page.locator('.room-card button');await trigger.focus();await page.keyboard.press('Enter');
    assert.equal(await page.locator('#room-dialog').isVisible(),true);
-   assert.equal(await page.locator('.detail-period').count(),13);assert.equal(await page.locator('.detail-period.chosen').count(),4);
+   await page.waitForSelector('.week-table');
+   assert.equal(await page.locator('.week-table tbody tr').count(),7);
+   assert.equal(await page.locator('.week-cell').count(),91);
+   assert.equal(await page.locator('.week-cell.chosen').count(),28);
    await page.screenshot({path:'artifacts/desktop-detail.png'});
    await page.keyboard.press('Escape');assert.equal(await page.locator('#room-dialog').isVisible(),false);
    assert.equal(await trigger.evaluate(el=>el===document.activeElement),true);
@@ -120,7 +148,7 @@ try{
  await check('empty results and clear additional filters',async()=>{
    await page.locator('#search').fill('no-room-with-this-name');await count(page,0);
    assert.equal(await page.locator('.room-card').count(),0);
-   await page.locator('#state-action').click();await count(page,19);
+   await page.locator('#state-action').click();await count(page,10);
  });
  await check('campus preference and accessible progressive results',async()=>{
    await page.reload();await settled(page);assert.equal(await page.locator('#campus').inputValue(),'04');await setPeriods(page,[1,2]);await ready(page);
@@ -138,15 +166,16 @@ try{
    }
    assert.equal(await page.locator('.room-card').count(),total);
    assert.equal(await page.locator('#load-more').textContent(),`已显示全部 ${total} 间教室`);
-   assert.equal(await page.locator('[data-room]').evaluateAll(buttons=>new Set(buttons.map(b=>b.dataset.room)).size),total);
+   assert.equal(await page.locator('[data-room-id]').evaluateAll(buttons=>new Set(buttons.map(b=>b.dataset.roomId)).size),total);
  });
  await check('reset restores every query filter',async()=>{
    await date(page,'2026-09-10');await page.locator('#campus').selectOption('04');await setPeriods(page,[3,6]);
-   await page.locator('#more-toggle').click();await page.locator('#building').selectOption('04/11');await page.locator('#search').fill('111');await page.locator('#capacity').selectOption('60');
+   await page.locator('#building').selectOption('04/11');await page.locator('#search').fill('111');await page.locator('#capacity').selectOption('60');await page.locator('#type').selectOption('多媒体教室');
    await page.locator('#reset-filters').click();await settled(page);
    assert.equal(await page.locator('#date').inputValue(),'2026-09-08');assert.equal(await page.locator('#campus').inputValue(),'');
-   assert.equal(await page.locator('#building').inputValue(),'');assert.equal(await page.locator('#search').inputValue(),'');assert.equal(await page.locator('#capacity').inputValue(),'0');
-   assert.equal(await page.locator('.period-option[aria-pressed="true"]').count(),0);assert.match(await page.locator('#state-panel').textContent(),/请选择节次/);
+   assert.equal(await page.locator('#building').inputValue(),'');assert.equal(await page.locator('#search').inputValue(),'');assert.equal(await page.locator('#capacity').inputValue(),'0');assert.equal(await page.locator('#type').inputValue(),'');
+   assert.equal(await page.locator('.period-option[aria-pressed="true"]').count(),0);
+   assert.equal(await page.locator('#overview-grid').isVisible(),true);
    assert.equal(await page.evaluate(()=>localStorage.getItem('roomgap-campus')),'');
  });
  await check('term limits, cross-month navigation and non-contiguous periods',async()=>{
@@ -206,11 +235,12 @@ try{
    await p.screenshot({path:'artifacts/mobile.png'});
    await p.locator('#load-more').scrollIntoViewIfNeeded();
    await p.waitForFunction(()=>document.querySelectorAll('.room-card').length===48);
-   await p.locator('#more-toggle').click();await p.locator('#capacity').scrollIntoViewIfNeeded();
+   await p.locator('#capacity').scrollIntoViewIfNeeded();
    await p.locator('#capacity').selectOption('30');await ready(p);
    assert.equal(await p.locator('.room-card').count(),24);
    await p.locator('.room-card button').first().click();assert.equal(await p.locator('#room-dialog').isVisible(),true);
-   assert.equal(await p.locator('.detail-period').count(),13);assert.equal(await p.locator('.detail-period.chosen').count(),3);await p.screenshot({path:'artifacts/mobile-detail.png'});
+   await p.waitForSelector('.week-table');
+   assert.equal(await p.locator('.week-cell').count(),91);assert.equal(await p.locator('.week-cell.chosen').count(),21);await p.screenshot({path:'artifacts/mobile-detail.png'});
    await p.locator('#close-dialog').click();await p.setViewportSize({width:320,height:900});await p.evaluate(()=>scrollTo(0,0));
    assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
    await p.screenshot({path:'artifacts/mobile-320.png'});await c.close();
