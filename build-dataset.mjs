@@ -1,4 +1,4 @@
-import {readFile,readdir,mkdir} from 'node:fs/promises';
+import {readFile,readdir,mkdir,rm} from 'node:fs/promises';
 import {roomDay,FULL_DAY_MASK} from './semester-model.mjs';
 import {applyAccessPolicy} from './room-policy.mjs';
 import {createHash} from 'node:crypto';
@@ -58,10 +58,38 @@ for(const date of dates){
  report.dateCoverage.push({date,buildings:seen.size,expected:byBuilding.size});
  await writeTextIfChanged(`${dest}/days/${date}.json`,JSON.stringify({date,catalogDigest,rooms:result}));
 }
+// Weekly bundles keep the room-week view to one small request instead of seven daily files.
+const candidateKinds=new Set(['classroom','unspecified']);
+const candidateIndices=roster.map((r,i)=>r.candidateEligible!==false&&candidateKinds.has(r.resourceKind)?i:null).filter(i=>i!==null);
+const mondayOf=date=>{
+ const value=new Date(`${date}T00:00:00Z`),day=value.getUTCDay();
+ return new Date(value.getTime()+(day===0?-6:1-day)*86400000).toISOString().slice(0,10);
+};
+const weekGroups=new Map();
+for(const date of dates){
+ const weekStart=mondayOf(date);
+ if(!weekGroups.has(weekStart))weekGroups.set(weekStart,[]);
+ weekGroups.get(weekStart).push(date);
+}
+await mkdir(`${dest}/weeks`,{recursive:true});
+for(const [weekStart,weekDates] of weekGroups){
+ const days=[];
+ for(const date of weekDates){
+  const day=JSON.parse(await readFile(`${dest}/days/${date}.json`,'utf8'));
+  days.push({date,masks:candidateIndices.map(i=>{
+   const state=day.rooms[i];
+   return [state.freeMask,state.occupiedMask,state.unknownMask];
+  })});
+ }
+ await writeTextIfChanged(`${dest}/weeks/${weekStart}.json`,JSON.stringify({weekStart,catalogDigest,rooms:candidateIndices,days}));
+}
+const expectedWeeks=new Set(weekGroups.keys());
+for(const file of await readdir(`${dest}/weeks`))if(/^\d{4}-\d{2}-\d{2}\.json$/.test(file)&&!expectedWeeks.has(file.slice(0,-5)))await rm(`${dest}/weeks/${file}`);
+report.weekBundles=weekGroups.size;
 report.orphanRoomIds=[...orphans].sort();report.occupiedRoomDays=occupiedRoomDays;report.firstCapture=firstCapture;report.lastCapture=lastCapture;
 report.complete=report.verifiedBuildingDays===report.expectedBuildingDays&&!report.missing.length;
 report.resourceKinds=roster.reduce((m,r)=>(m[r.resourceKind]=(m[r.resourceKind]||0)+1,m),{});
 report.accessPolicy={version:accessPolicy.version||null,eligibleRooms:roster.filter(r=>r.candidateEligible).length,excludedRooms:roster.filter(r=>!r.candidateEligible).length,unmatchedBuildings};
 await writeTextIfChanged(`${dest}/coverage.json`,JSON.stringify(report,null,2));
-await writeTextIfChanged(`${dest}/schema.json`,JSON.stringify({version:1,catalogDigest,periods:13,roomReference:'room字段为rooms.json的零起始数组索引',maskEncoding:'第n节对应1<<(n-1)；13节全为1是8191',intervalEncoding:'freeIntervals为闭区间[startPeriod,endPeriod]',missingData:'未知节次不得当作空闲',timezone:'Asia/Shanghai'},null,2));
+await writeTextIfChanged(`${dest}/schema.json`,JSON.stringify({version:1,catalogDigest,periods:13,roomReference:'room字段为rooms.json的零起始数组索引',weekBundle:'weeks/YYYY-MM-DD.json；weekStart为周一，rooms为候选教室在rooms.json的下标，days[].masks与rooms顺序一致，元素为[freeMask,occupiedMask,unknownMask]',maskEncoding:'第n节对应1<<(n-1)；13节全为1是8191',intervalEncoding:'freeIntervals为闭区间[startPeriod,endPeriod]',missingData:'未知节次不得当作空闲',timezone:'Asia/Shanghai'},null,2));
 console.log(JSON.stringify({...report,dateCoverage:undefined,missing:report.missing.length,anomalies:report.anomalies.length,orphanRoomIds:report.orphanRoomIds.length}));

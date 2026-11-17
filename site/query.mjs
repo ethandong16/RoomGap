@@ -230,6 +230,28 @@ export function selectRooms(rooms, day, filters) {
   }).sort((a, b) => b.continuousLength - a.continuousLength || b.relevantFreeLength - a.relevantFreeLength || compareRooms(a.room, b.room));
 }
 
+export function validateWeek(week, weekStart, roomCount, digest) {
+  if (week?.weekStart !== weekStart || week?.catalogDigest !== digest) throw new Error('周数据版本不一致，请重新加载');
+  if (!Array.isArray(week.rooms) || !week.rooms.length || new Set(week.rooms).size !== week.rooms.length) throw new Error('周数据教室目录有误，请重试');
+  if (week.rooms.some(index => !Number.isInteger(index) || index < 0 || index >= roomCount)) throw new Error('周数据教室目录有误，请重试');
+  if (!Array.isArray(week.days) || !week.days.length || week.days.length > 7) throw new Error('周数据日期不完整，请重试');
+  const dates = new Set();
+  for (const day of week.days) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day.date) || dates.has(day.date)) throw new Error('周数据日期有误，请重试');
+    dates.add(day.date);
+    if (!Array.isArray(day.masks) || day.masks.length !== week.rooms.length) throw new Error('周数据节次不完整，请重试');
+    for (const mask of day.masks) {
+      if (!Array.isArray(mask) || mask.length !== 3) throw new Error('周数据节次有误，请重试');
+      const [free, occupied, unknown] = mask;
+      for (const value of mask) {
+        if (!Number.isInteger(value) || value < 0 || value > FULL_DAY_MASK) throw new Error('周数据节次有误，请重试');
+      }
+      if ((free & (occupied | unknown)) || (free | occupied | unknown) !== FULL_DAY_MASK) throw new Error('周数据节次有误，请重试');
+    }
+  }
+  return week;
+}
+
 export function validateDay(day, date, rooms, digest) {
   if (day.date !== date || day.catalogDigest !== digest) throw new Error('数据版本不一致，请重新加载');
   if (!Array.isArray(day.rooms) || day.rooms.length !== rooms.length) throw new Error('当日教室数据不完整，请重试');

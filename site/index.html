@@ -57,6 +57,11 @@
         <span class="semester-context"><span class="status-dot" aria-hidden="true"></span><strong>2026 — 2027 · 秋季</strong><span id="term-range">正在读取学期数据</span></span>
         <span class="semester-sync"><span id="sync-label">正在同步</span></span>
       </div>
+      <div id="now-strip" class="now-strip" hidden>
+        <span class="now-dot" aria-hidden="true"></span>
+        <span id="now-label" class="now-label"></span>
+        <button id="now-action" class="now-action" type="button">看这一节</button>
+      </div>
       <div class="query-panel-head">
         <div>
           <p class="section-label"><span class="section-index">01</span>查询</p>
@@ -173,6 +178,11 @@
           <p id="selection-summary">读取已采集的教室安排…</p>
         </div>
         <div class="results-tools">
+          <div id="results-view-switch" class="results-view-switch" role="group" aria-label="结果视图" hidden>
+            <button type="button" data-results-view="cards" aria-pressed="true">卡片</button>
+            <button type="button" data-results-view="floors" aria-pressed="false">楼层</button>
+            <button type="button" data-results-view="matrix" aria-pressed="false">日程表</button>
+          </div>
           <span class="period-legend" aria-label="时段条图例"><span><i class="free"></i>空闲</span><span><i class="busy"></i>占用</span><span><i class="unknown"></i>未知</span><span><i class="chosen"></i>所选</span></span>
           <span id="sort-label" class="sort-label"><svg aria-hidden="true"><use href="./icons.svg#sort"/></svg>按连续空闲排序</span>
         </div>
@@ -180,6 +190,8 @@
       <p id="announcement" class="sr-only" role="status" aria-live="polite"></p>
       <div id="state-panel" class="state-panel"><span class="spinner" aria-hidden="true"></span><h3>正在加载教室安排</h3><p>稍等一下，你的专注空间马上就好。</p></div>
       <div id="overview-grid" class="building-grid" hidden></div>
+      <div id="floor-stack" class="floor-stack" hidden></div>
+      <div id="matrix-wrap" class="matrix-wrap" hidden></div>
       <div id="room-grid" class="room-grid"></div>
       <p id="load-more" class="scroll-status" hidden></p>
     </section>
@@ -187,9 +199,14 @@
     <aside id="data-note" class="data-note">
       <p class="section-label"><span class="section-index">03</span>数据说明</p>
       <div class="data-note-body">
-        <p>排课空闲不保证实际开放，临时调整以学校安排为准；当前仅支持第 1–13 节，不提供钟点时间。</p>
+        <p>排课空闲不保证实际开放，临时调整以学校安排为准；当前仅支持第 1–13 节。节次钟点为站点参考作息，不是教务系统实时数据。</p>
         <p class="data-meta" id="data-meta">正在读取数据更新时间</p>
         <p class="data-scope">共 <strong id="candidate-count">—</strong> 间候选教室，覆盖 <strong id="campus-count">—</strong> 个校区、20 个教学周。收录普通教室及类型未明教室；已排除虚拟、体育及专用资源，容量为座位总数，不代表剩余座位。</p>
+        <details id="bell-schedule" class="bell-schedule">
+          <summary>参考作息 <span id="bell-schedule-status" class="bell-badge">待校方核对</span></summary>
+          <div id="bell-schedule-list" class="bell-schedule-list"></div>
+          <p class="bell-schedule-note">作息为站点参考配置，不是教务系统采集；以学校实际铃声为准。</p>
+        </details>
         <p class="analytics-note">楼层由房号前缀推断，无法确认的归入“未标注”。仅记录匿名访问、查询和教室详情事件，不收集账号、姓名或联系方式。</p>
       </div>
     </aside>

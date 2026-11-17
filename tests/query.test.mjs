@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {selectRooms, validateDay, initialDate, beijingDate, dateInTerm, moveDate, teachingWeek, createDayLoader,
   buildingLabel, floorOf, parseFloorQuery, searchScore, browseRooms, overviewByBuilding, periodCounts,
-  weekDates, formatIntervals, longestFreeInterval} from '../site/query.mjs';
+  weekDates, formatIntervals, longestFreeInterval, validateWeek} from '../site/query.mjs';
 const load=async p=>JSON.parse(await readFile(new URL(`../data/dataset/${p}`,import.meta.url),'utf8'));
 const [rooms,day,term,schema]=await Promise.all(['rooms.json','days/2026-09-08.json','term.json','schema.json'].map(load));
 
@@ -167,4 +167,16 @@ test('week starts on Monday and the shared loader deduplicates requests',async()
   assert.equal(await loader.load('2026-09-08'),a);
   assert.equal(calls,1);
   assert.equal(loader.has('2026-09-08'),true);
+});
+
+test('weekly bundle validates catalog digest, room indices and masks',async()=>{
+  const week=await load('weeks/2026-09-07.json');
+  validateWeek(week,'2026-09-07',rooms.length,schema.catalogDigest);
+  assert.equal(week.days.length,7);
+  assert.ok(week.rooms.length>0);
+  const bundle={weekStart:'2026-09-07',catalogDigest:schema.catalogDigest,rooms:[0],days:[{date:'2026-09-07',masks:[[8191,0,0]]}]};
+  assert.equal(validateWeek(bundle,'2026-09-07',rooms.length,schema.catalogDigest),bundle);
+  assert.throws(()=>validateWeek({...bundle,catalogDigest:'old'},'2026-09-07',rooms.length,schema.catalogDigest));
+  assert.throws(()=>validateWeek({...bundle,rooms:[rooms.length]},'2026-09-07',rooms.length,schema.catalogDigest));
+  assert.throws(()=>validateWeek({...bundle,days:[{date:'2026-09-07',masks:[[8190,0,0]]}]},'2026-09-07',rooms.length,schema.catalogDigest));
 });

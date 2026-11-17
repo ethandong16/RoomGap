@@ -18,6 +18,16 @@ assert.equal(new Set(rooms.map(r=>r.id)).size,rooms.length);
 const expected=Array.from({length:140},(_,i)=>new Date(Date.parse(`${term.startDate}T00:00:00Z`)+i*86400000).toISOString().slice(0,10));
 assert.equal(expected.at(-1),term.endDate);
 assert.deepEqual((await readdir(`${root}/days`)).filter(f=>f.endsWith('.json')).sort(),expected.map(d=>`${d}.json`));
+const mondayOf=date=>{
+ const value=new Date(`${date}T00:00:00Z`),day=value.getUTCDay();
+ return new Date(value.getTime()+(day===0?-6:1-day)*86400000).toISOString().slice(0,10);
+};
+const weekStarts=new Map();
+for(const date of expected){
+ const weekStart=mondayOf(date);
+ if(!weekStarts.has(weekStart))weekStarts.set(weekStart,[]);
+ weekStarts.get(weekStart).push(date);
+}
 let roomDays=0;
 for(const date of expected){
  const d=await load(`${root}/days/${date}.json`);
@@ -35,4 +45,27 @@ for(const date of expected){
 }
 assert.equal(roomDays,coverage.roomDays);
 assert.equal(roomDays*13,coverage.periodStates);
-console.log(JSON.stringify({verified:true,dates:140,rooms:rooms.length,roomDays,periodStates:roomDays*13,sourceQueries:coverage.verifiedBuildingDays}));
+const weekFiles=(await readdir(`${root}/weeks`)).filter(f=>/^\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort();
+assert.deepEqual(weekFiles,[...weekStarts.keys()].sort().map(date=>`${date}.json`));
+let weekMasks=0;
+for(const [weekStart,dates] of weekStarts){
+ const week=await load(`${root}/weeks/${weekStart}.json`);
+ assert.equal(week.weekStart,weekStart);assert.equal(week.catalogDigest,schema.catalogDigest);
+ assert.ok(Array.isArray(week.rooms)&&week.rooms.length>0);
+ assert.equal(new Set(week.rooms).size,week.rooms.length);
+ for(const index of week.rooms){
+  assert.ok(Number.isInteger(index)&&index>=0&&index<rooms.length);
+  assert.equal(rooms[index].candidateEligible!==false&&['classroom','unspecified'].includes(rooms[index].resourceKind),true);
+ }
+ assert.deepEqual(week.days.map(day=>day.date),dates);
+ for(const day of week.days){
+  assert.equal(day.masks.length,week.rooms.length);
+  for(const [free,occupied,unknown] of day.masks){
+   for(const mask of [free,occupied,unknown])assert.ok(Number.isInteger(mask)&&mask>=0&&mask<=8191);
+   assert.equal(free&occupied,0);assert.equal(free&unknown,0);
+   assert.equal(free|occupied|unknown,8191);weekMasks++;
+  }
+ }
+}
+assert.equal(weekStarts.size,20);
+console.log(JSON.stringify({verified:true,dates:140,rooms:rooms.length,roomDays,periodStates:roomDays*13,weeks:weekStarts.size,weekMasks,sourceQueries:coverage.verifiedBuildingDays}));

@@ -9,6 +9,7 @@
 | `rooms.json` | 学校教室ID、校区、楼栋、房间、容量、类型、资源类别 |
 | `term.json` | 官方接口返回的开课日、20周、13节及考试节次对应关系 |
 | `days/YYYY-MM-DD.json` | 每间教室当天的空闲、占用、未知节次及连续空闲区间 |
+| `weeks/YYYY-MM-DD.json` | 以周一为起点的周包，供教室本周视图一次加载 |
 | `coverage.json` | 日期和楼栋覆盖情况、缺失项、异常、原始快照采集时间 |
 | `schema.json` | 格式版本、教室目录摘要及节次编码说明 |
 
@@ -31,6 +32,23 @@ const available = (roomDay.freeMask & required) === required;
 ```
 
 命令行示例：`node query-free.mjs 2026-09-08 1 4 泰达西院`。
+
+## 周包
+
+`weeks/YYYY-MM-DD.json` 的日期是周一。它只收录候选教室，格式为：
+
+```json
+{
+  "weekStart": "2026-09-07",
+  "catalogDigest": "…",
+  "rooms": [12, 13, 27],
+  "days": [
+    {"date": "2026-09-07", "masks": [[8191, 0, 0], [0, 8191, 0], [8190, 1, 0]]}
+  ]
+}
+```
+
+`rooms` 是 `rooms.json` 的零起始下标；`days[].masks` 与 `rooms` 顺序一一对应，每项为 `[freeMask, occupiedMask, unknownMask]`。周包只用于教室本周视图，不替代日文件；读取失败时客户端回退到逐日文件。
 
 ## 显示范围
 
