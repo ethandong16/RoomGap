@@ -713,10 +713,10 @@
   ],
   "weekdayMismatches": 0,
   "weekMaskMismatches": 0,
-  "generatedAt": "2026-11-16T04:48:24.765Z",
-  "occupiedRoomDays": 23733,
+  "generatedAt": "2026-11-17T04:48:28.800Z",
+  "occupiedRoomDays": 23742,
   "firstCapture": "2026-11-05T04:30:24.157Z",
-  "lastCapture": "2026-11-16T04:46:12.007Z",
+  "lastCapture": "2026-11-17T04:46:16.153Z",
   "resourceKinds": {
     "virtual": 159,
     "special-purpose": 158,
