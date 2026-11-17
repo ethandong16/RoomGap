@@ -31,7 +31,7 @@ try{
  await check('desktop initial screen and content',async()=>{
    assert.equal(await page.locator('#candidate-count').textContent(),'390');
    assert.equal(await page.locator('#campus-count').textContent(),'3');
-   assert.equal(await page.locator('.period-option').count(),12);
+   assert.equal(await page.locator('.period-option').count(),13);
    assert.deepEqual(await page.locator('.period-option[aria-pressed="true"]').evaluateAll(buttons=>buttons.map(button=>Number(button.dataset.period))),[]);
    assert.equal(await page.locator('#period-selection-count').textContent(),'不选 = 看今日概览');
    assert.equal(await page.locator('#overview-grid').isVisible(),true);
@@ -42,6 +42,13 @@ try{
    assert.equal(await page.locator('.period-preset').first().getAttribute('aria-pressed'),'true');
    await page.locator('.period-clear').click();
    assert.equal(await page.locator('.period-option[aria-pressed="true"]').count(),0);
+   await page.locator('.gap-preset').click();
+   assert.deepEqual(await page.locator('.period-option[aria-pressed="true"]').evaluateAll(buttons=>buttons.map(button=>Number(button.dataset.period))),[9]);
+   assert.equal(await page.locator('.gap-preset').getAttribute('aria-pressed'),'true');
+   await page.locator('.period-clear').click();
+   assert.equal(await page.locator('.period-option[aria-pressed="true"]').count(),0);
+   await page.evaluate(()=>scrollTo(0,0));
+   await page.waitForTimeout(100);
    assert.equal(await page.locator('#date-picker').isVisible(),true);
    const dateHitTarget=await page.locator('.date-picker-shell').evaluate(shell=>{
      const rect=shell.getBoundingClientRect();
@@ -82,7 +89,7 @@ try{
    assert.match(await page.locator('.room-card h3').first().textContent(),/201/);
    await page.locator('.room-card button').first().click();
    await page.waitForSelector('.week-table');
-   assert.equal(await page.locator('.week-cell').count(),84);
+   assert.equal(await page.locator('.week-cell').count(),91);
    await page.keyboard.press('Escape');
    await page.waitForFunction(()=>!document.querySelector('#room-dialog').open);
    await page.locator('#view-time').click();
@@ -110,7 +117,7 @@ try{
    await page.locator('#results-view-switch button[data-results-view="matrix"]').click();
    await page.waitForSelector('.matrix');
    assert.equal(await page.locator('.matrix tbody tr').count(),76);
-   assert.equal(await page.locator('.matrix-period').count(),12);
+   assert.equal(await page.locator('.matrix-period').count(),13);
    await page.locator('.matrix-period[data-matrix-period="1"]').click();
    await page.waitForFunction(()=>document.querySelector('.period-option[data-period="1"]').getAttribute('aria-pressed')==='true');
    assert.equal(await page.locator('.matrix-cell.chosen').count(),76);
@@ -186,7 +193,7 @@ try{
    assert.equal(await page.locator('#room-dialog').isVisible(),true);
    await page.waitForSelector('.week-table');
    assert.equal(await page.locator('.week-table tbody tr').count(),7);
-   assert.equal(await page.locator('.week-cell').count(),84);
+   assert.equal(await page.locator('.week-cell').count(),91);
    assert.equal(await page.locator('.week-cell.chosen').count(),28);
    await page.screenshot({path:'artifacts/desktop-detail.png'});
    await page.keyboard.press('Escape');
@@ -233,9 +240,9 @@ try{
    await date(page,'2026-08-31');await ready(page);assert.equal(await page.locator('#previous-day').isDisabled(),true);
    await page.locator('#next-day').click();await ready(page);assert.equal(await page.locator('#date').inputValue(),'2026-09-01');
    await date(page,'2027-01-17');await ready(page);assert.equal(await page.locator('#next-day').isDisabled(),true);
-   await setPeriods(page,[4,8]);
-   assert.deepEqual(await page.locator('.period-option[aria-pressed="true"]').evaluateAll(buttons=>buttons.map(button=>Number(button.dataset.period))),[4,8]);
-   assert.match(await page.locator('#selection-summary').textContent(),/第 4、8 节/);
+   await setPeriods(page,[4,9]);
+   assert.deepEqual(await page.locator('.period-option[aria-pressed="true"]').evaluateAll(buttons=>buttons.map(button=>Number(button.dataset.period))),[4,9]);
+   assert.match(await page.locator('#selection-summary').textContent(),/第 4、9 节/);
    await date(page,'2026-08-30');assert.equal(await page.locator('.room-card').count(),0);
    await date(page,'2026-09-08');await ready(page);
  });
@@ -282,7 +289,7 @@ try{
      const rect=shell.getBoundingClientRect();
      return document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2)?.id;
    }),'date');
-   assert.equal(await p.locator('\.period-option').count(),12);
+   assert.equal(await p.locator('.period-option').count(),13);
    assert.equal(await p.locator('.period-option').first().evaluate(element=>element.getBoundingClientRect().height>=44),true);
    await p.screenshot({path:'artifacts/mobile.png'});
    await p.locator('#load-more').scrollIntoViewIfNeeded();
@@ -292,7 +299,7 @@ try{
    assert.equal(await p.locator('.room-card').count(),24);
    await p.locator('.room-card button').first().click();assert.equal(await p.locator('#room-dialog').isVisible(),true);
    await p.waitForSelector('.week-table');
-   assert.equal(await p.locator('\.week-cell').count(),84);assert.equal(await p.locator('.week-cell.chosen').count(),21);await p.screenshot({path:'artifacts/mobile-detail.png'});
+   assert.equal(await p.locator('.week-cell').count(),91);assert.equal(await p.locator('.week-cell.chosen').count(),21);await p.screenshot({path:'artifacts/mobile-detail.png'});
    await p.locator('#close-dialog').click();
    await p.waitForFunction(()=>!document.querySelector('#room-dialog').open);
    await p.setViewportSize({width:320,height:900});await p.evaluate(()=>scrollTo(0,0));
@@ -307,13 +314,13 @@ try{
  await check('URL state restores mode, floor, periods and room',async()=>{
    const c=await context(),p=await c.newPage();
    await p.clock.setFixedTime(new Date('2026-11-17T01:00:00Z'));
-   await p.goto(`${base}/?mode=room&building=02%2F3&floor=2&layout=matrix&periods=5%2C6%2C7%2C8`);
+   await p.goto(`${base}/?mode=room&building=02%2F3&floor=2&layout=matrix&periods=5%2C6%2C7%2C8%2C9`);
    await p.waitForFunction(()=>document.querySelector('#results-section').getAttribute('aria-busy')==='false');
    await p.waitForSelector('.matrix');
    assert.equal(await p.locator('#view-room').getAttribute('aria-selected'),'true');
    assert.equal(await p.locator('#building').inputValue(),'02/3');
    assert.match(await p.locator('.floor-tab[aria-pressed="true"]').textContent(),/2F/);
-   assert.deepEqual(await p.locator('.period-option[aria-pressed="true"]').evaluateAll(buttons=>buttons.map(button=>button.dataset.period)),['5','6','7','8']);
+   assert.deepEqual(await p.locator('.period-option[aria-pressed="true"]').evaluateAll(buttons=>buttons.map(button=>button.dataset.period)),['5','6','7','8','9']);
    assert.equal(await p.locator('.matrix tbody tr').count(),16);
    await p.locator('.matrix tbody tr').first().click();
    await p.waitForSelector('.week-table');
@@ -336,7 +343,8 @@ try{
    await p.goto(base);await settled(p);
    assert.equal(await p.locator('#now-strip').isVisible(),true);
    assert.match(await p.locator('#now-label').textContent(),/现在第1–2节/);
-   assert.match(await p.locator('#now-label').textContent(),/参考作息/);
+   assert.equal(await p.locator('#now-ref').textContent(),'参考');
+   assert.equal(await p.locator('#now-ref').isVisible(),true);
    await p.locator('#now-action').click();
    await p.waitForFunction(()=>document.querySelector('#result-count').textContent!=='');
    assert.equal(await p.locator('.period-option[data-period="1"]').getAttribute('aria-pressed'),'true');

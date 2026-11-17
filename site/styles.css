@@ -282,7 +282,7 @@ html.is-scrolled .site-header { border-color: var(--line); box-shadow: 0 8px 24p
 .room-streak { display: flex; flex: 0 0 auto; align-items: baseline; gap: 3px; padding-left: 11px; border-left: 1px solid var(--line); }
 .room-streak strong { color: var(--pine); font-family: var(--font-display); font-size: 32px; font-weight: 500; line-height: .9; font-variant-numeric: tabular-nums; }
 .room-streak span { color: var(--muted); font-size: 8px; line-height: 1.35; }
-.period-strip { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 3px; }
+.period-strip { display: grid; grid-template-columns: repeat(13, minmax(0, 1fr)); gap: 3px; }
 .period-cell { display: grid; min-width: 0; height: 22px; place-items: center; border-radius: 5px; color: var(--muted); background: var(--paper-deep); font-family: var(--font-mono); font-size: 8px; font-variant-numeric: tabular-nums; }
 .period-cell.free { color: var(--pine); background: var(--pine-soft); }
 .period-cell.busy { color: color-mix(in srgb, var(--muted) 70%, transparent); background: var(--paper-deep); }
@@ -532,6 +532,9 @@ dialog::backdrop { background: var(--backdrop); backdrop-filter: blur(6px); }
 .period-band .period-option span { max-width: 100%; overflow: hidden; font-size: 9px; line-height: 1.1; text-overflow: ellipsis; white-space: nowrap; }
 .period-band .period-option.selected { box-shadow: inset 0 1px 0 rgb(255 255 255 / 14%); }
 .period-option.is-empty span { opacity: .62; }
+.period-option.gap { border-style: dashed; }
+.period-option.gap.selected { border-style: solid; }
+.period-preset.gap-preset { border-style: dashed; }
 .floor-row { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); }
 .floor-row-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
 .floor-row-label { color: var(--ink-soft); font-size: 11px; font-weight: 650; }
@@ -670,9 +673,9 @@ dialog::backdrop { background: var(--backdrop); backdrop-filter: blur(6px); }
 
 /* Product views: now strip, result layouts, floor section and matrix. */
 .now-strip {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
-  flex-wrap: wrap;
   gap: 8px;
   margin: -4px 0 14px;
   padding: 10px 12px;
@@ -680,9 +683,10 @@ dialog::backdrop { background: var(--backdrop); backdrop-filter: blur(6px); }
   border-radius: 14px;
   background: color-mix(in srgb, var(--pine-soft) 58%, var(--surface));
 }
-.now-dot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: var(--pine); box-shadow: 0 0 0 4px color-mix(in srgb, var(--pine) 12%, transparent); animation: breathe 2.8s ease-in-out infinite; }
-.now-label { min-width: 0; flex: 1 1 180px; color: var(--ink-soft); font-size: 11px; font-weight: 620; line-height: 1.45; }
-.now-action { min-height: 36px; margin-left: auto; padding: 0 12px; border: 1px solid var(--pine); border-radius: 10px; color: var(--on-pine); background: var(--pine); font-size: 10px; font-weight: 680; white-space: nowrap; transition: color .18s ease, background-color .18s ease, transform .2s var(--ease-spring); touch-action: manipulation; }
+.now-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--pine); box-shadow: 0 0 0 4px color-mix(in srgb, var(--pine) 12%, transparent); animation: breathe 2.8s ease-in-out infinite; }
+.now-label { min-width: 0; color: var(--ink-soft); font-size: 11px; font-weight: 620; line-height: 1.45; }
+.now-ref { padding: 3px 7px; border-radius: 999px; color: var(--brass); background: var(--brass-soft); font-size: 8px; font-weight: 600; line-height: 1; white-space: nowrap; }
+.now-action { min-height: 36px; padding: 0 12px; border: 1px solid var(--pine); border-radius: 10px; color: var(--on-pine); background: var(--pine); font-size: 10px; font-weight: 680; white-space: nowrap; transition: color .18s ease, background-color .18s ease, transform .2s var(--ease-spring); touch-action: manipulation; }
 .now-action:hover { background: var(--pine-deep); }
 .now-action:active { transform: translateY(1px) scale(.95); }
 
@@ -765,8 +769,11 @@ dialog::backdrop { background: var(--backdrop); backdrop-filter: blur(6px); }
 .data-note .bell-schedule-note { margin-top: 10px; color: var(--muted); font-size: 9px; line-height: 1.6; }
 
 @media (max-width: 640px) {
-  .now-strip { align-items: flex-start; }
-  .now-action { margin-left: 15px; }
+  .now-strip { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "dot label ref" "dot action action"; row-gap: 6px; align-items: start; }
+  .now-dot { grid-area: dot; margin-top: 5px; }
+  .now-label { grid-area: label; }
+  .now-ref { grid-area: ref; justify-self: end; }
+  .now-action { grid-area: action; justify-self: end; }
   .floor-slab { grid-template-columns: 58px minmax(0, 1fr); gap: 8px; padding: 11px; transform: none; }
   .floor-slab:hover { transform: translateY(-1px); }
   .floor-slab-label { min-height: 50px; padding-inline: 5px; }

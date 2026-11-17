@@ -5,7 +5,7 @@ import {
   overviewByBuilding, periodCounts, weekDates, formatInterval, formatIntervals,
   longestFreeInterval
 } from './query.mjs';
-import {BELL_SCHEDULE, PERIOD_GROUPS, VISIBLE_PERIODS, periodAt, groupRange} from './bell-schedule.mjs';
+import {BELL_SCHEDULE, PERIOD_GROUPS, VISIBLE_PERIODS, GAP_PERIODS, periodAt, groupRange} from './bell-schedule.mjs';
 import {freeIntervals} from './semester-model.mjs';
 
 const $ = id => document.getElementById(id);
@@ -297,7 +297,9 @@ function renderNow() {
     : beforeFirst
       ? `${next.label} ${next.start} 开始`
       : `下一节 ${next.label} · ${next.start}–${next.end}`;
-  $('now-label').textContent = `${label}${BELL_SCHEDULE.verified ? '' : ' · 参考作息'}`;
+  $('now-label').textContent = label;
+  $('now-ref').hidden = BELL_SCHEDULE.verified;
+  $('now-ref').title = BELL_SCHEDULE.source;
   $('now-action').textContent = current ? '看这节' : '看下一节';
   $('now-action').hidden = false;
   strip.hidden = false;
@@ -318,7 +320,7 @@ function updateViewChrome() {
     ? (selectedPeriods.size
       ? `${icon('spark')}连续空闲优先；未知节次不会算作空闲。`
       : `${icon('spark')}不选节次时，先看每栋楼今天有多少空教室。`)
-    : `${icon('spark')}点教室卡片查看本周 7×12 日程；不用先选节次。`;
+    : `${icon('spark')}点教室卡片查看本周 7×13 日程；不用先选节次。`;
   document.body.dataset.view = viewMode;
   renderFloorTabs();
 }
@@ -378,7 +380,8 @@ function renderPeriodPicker() {
           const selected = selectedPeriods.has(period);
           const count = counts ? counts[period - 1] : null;
           const countText = count == null ? '—' : `${count} 间`;
-          return `<button type="button" class="period-option${selected ? ' selected' : ''}${count === 0 ? ' is-empty' : ''}" data-period="${period}" aria-pressed="${selected}" aria-label="第 ${period} 节，${count == null ? '数量读取中' : `${count} 间空闲`}"><strong>${period}</strong><span>${countText}</span></button>`;
+          const gap = GAP_PERIODS.has(period);
+          return `<button type="button" class="period-option${selected ? ' selected' : ''}${count === 0 ? ' is-empty' : ''}${gap ? ' gap' : ''}" data-period="${period}" aria-pressed="${selected}" title="第 ${period} 节${gap ? ' · 非教学空档' : ''}" aria-label="第 ${period} 节${gap ? '，非教学空档' : ''}，${count == null ? '数量读取中' : `${count} 间空闲`}"><strong>${period}</strong><span>${countText}</span></button>`;
         }).join('')}
       </div>
     </div>`).join('');
@@ -464,7 +467,7 @@ function syncDateLabels() {
 function periodStrip(state) {
   return VISIBLE_PERIODS.map(period => {
     const bit=1<<(period-1), status = state.unknownMask & bit ? 'unknown' : state.occupiedMask & bit ? 'busy' : 'free';
-    return `<span class="period-cell ${status}${selectedPeriods.has(period) ? ' selected' : ''}" title="第 ${period} 节 ${{free:'空闲',busy:'占用',unknown:'未知'}[status]}">${period}</span>`;
+    return `<span class="period-cell ${status}${GAP_PERIODS.has(period) ? ' gap' : ''}${selectedPeriods.has(period) ? ' selected' : ''}" title="第 ${period} 节${GAP_PERIODS.has(period) ? '（空档）' : ''} ${{free:'空闲',busy:'占用',unknown:'未知'}[status]}">${period}</span>`;
   }).join('');
 }
 function roomCard(entry, index) {
@@ -486,7 +489,7 @@ function roomCard(entry, index) {
       </div>
       <div class="room-streak" title="${streak ? `最长连续空闲 ${streak} 节` : allUnknown ? '今天没有可用数据' : '今天没有记录到整段空闲'}"><strong>${streak || '—'}</strong><span>${streakLabel}</span></div>
     </div>
-    <div class="period-strip" aria-label="第 1–8、10–13 节状态">${periodStrip(state)}</div>
+    <div class="period-strip" aria-label="第 1–13 节状态，第9节为空档">${periodStrip(state)}</div>
     <p class="room-intervals">${esc(freeLabel)}</p>
     <div class="room-card-foot">
       <div class="room-facts">
@@ -611,7 +614,7 @@ function renderMatrix(entries) {
       ${cells}
     </tr>`;
   }).join('');
-  $('matrix-wrap').innerHTML = `<div class="matrix-hint">${icon('spark')}${matchMedia('(max-width: 640px)').matches ? '左右滑动看 12 节；' : ''}点列头切换节次；点教室行看本周。</div><div class="matrix-scroll"><table class="matrix" aria-label="教室与节次日程表"><thead>${head}</thead><tbody>${rows}</tbody></table></div>`;
+  $('matrix-wrap').innerHTML = `<div class="matrix-hint">${icon('spark')}${matchMedia('(max-width: 640px)').matches ? '左右滑动看 13 节；' : ''}点列头切换节次；点教室行看本周。</div><div class="matrix-scroll"><table class="matrix" aria-label="教室与节次日程表"><thead>${head}</thead><tbody>${rows}</tbody></table></div>`;
 }
 function renderFloorStack(entries) {
   $('room-grid').replaceChildren();
@@ -899,7 +902,7 @@ function roomWeekMarkup(room, weekData) {
     <div class="detail-date"><strong>${prettyDate(today)}</strong><span>第 ${teachingWeek(today,catalog.term)} 周</span></div>
     <div class="legend"><span><i></i>空闲</span><span><i class="busy"></i>占用</span><span><i class="unknown"></i>未知</span><span><i class="chosen"></i>所选</span></div>
     <div class="week-scroll">
-      <table class="week-table" aria-label="本周 12 节安排（无第9节）">
+      <table class="week-table" aria-label="本周 13 节安排（第9节为空档）">
         <thead>
           <tr class="week-groups"><th aria-hidden="true"></th>${PERIOD_GROUPS.map(group=>`<th colspan="${group.periods.length}">${group.label}</th>`).join('')}</tr>
           <tr class="week-periods"><th aria-hidden="true"></th>${VISIBLE_PERIODS.map(period=>`<th>${period}</th>`).join('')}</tr>
@@ -912,7 +915,7 @@ function roomWeekMarkup(room, weekData) {
       <span>${todaySummary}</span>
     </div>
     <p class="detail-caption">${chosenCaption}点日期可在主页查看当天。</p>
-    <p class="detail-note">排课快照不保证实际开放，未知节次不算空闲。数据不含钟点时间，站内只展示第 1–8、10–13 节（学校无第9节）。</p>`;
+    <p class="detail-note">排课快照不保证实际开放，未知节次不算空闲。第9节是非教学空档，有记录占用时仍按占用显示；数据不含钟点时间。</p>`;
 }
 async function openRoom(roomId, trigger, {fromUrl = false} = {}) {
   const room = roomById.get(roomId);
