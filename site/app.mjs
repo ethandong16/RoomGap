@@ -5,7 +5,7 @@ import {
   overviewByBuilding, periodCounts, weekDates, formatInterval, formatIntervals,
   longestFreeInterval
 } from './query.mjs';
-import {BELL_SCHEDULE, PERIOD_GROUPS, periodAt, groupRange} from './bell-schedule.mjs';
+import {BELL_SCHEDULE, PERIOD_GROUPS, VISIBLE_PERIODS, periodAt, groupRange} from './bell-schedule.mjs';
 import {freeIntervals} from './semester-model.mjs';
 
 const $ = id => document.getElementById(id);
@@ -113,7 +113,8 @@ function applyTheme(preference,{persist=true}={}) {
   });
   if(persist)try{localStorage.setItem('roomgap-theme',themePreference);}catch{}
 }
-function selectedPeriodList() { return [...selectedPeriods].sort((a,b)=>a-b); }
+function selectedPeriodList() { return [...selectedPeriods].filter(period => VISIBLE_PERIODS.includes(period)).sort((a,b)=>a-b); }
+function sanitizePeriods(periods) { return new Set([...periods].filter(period => VISIBLE_PERIODS.includes(period))); }
 function selectedPeriodText() {
   const periods=selectedPeriodList(),groups=[];
   if(!periods.length)return '未选节次';
@@ -153,7 +154,7 @@ function saveCampus() { try { localStorage.setItem('roomgap-campus', controls.ca
 
 function parseUrlState() {
   const params = new URLSearchParams(location.search);
-  const periods = [...new Set((params.get('periods') || '').split(',').map(Number).filter(period => Number.isInteger(period) && period >= 1 && period <= 13))].sort((a, b) => a - b);
+  const periods = [...new Set((params.get('periods') || '').split(',').map(Number).filter(period => VISIBLE_PERIODS.includes(period)))].sort((a, b) => a - b);
   return {
     mode: params.get('mode') === 'room' ? 'room' : 'time',
     layout: ['cards', 'matrix', 'floors'].includes(params.get('layout')) ? params.get('layout') : 'cards',
@@ -207,7 +208,7 @@ async function applyUrlState(state) {
     controls.search.value = state.search;
     controls.capacity.value = [...controls.capacity.options].some(option => option.value === state.capacity) ? state.capacity : '0';
     controls.type.value = [...controls.type.options].some(option => option.value === state.type) ? state.type : '';
-    selectedPeriods = new Set(state.periods);
+    selectedPeriods = sanitizePeriods(state.periods);
     controls.date.value = dateInTerm(state.date, catalog.term) ? state.date : initialDate(catalog.term).date;
     renderFloorTabs();
     renderPeriodPicker();
@@ -317,7 +318,7 @@ function updateViewChrome() {
     ? (selectedPeriods.size
       ? `${icon('spark')}连续空闲优先；未知节次不会算作空闲。`
       : `${icon('spark')}不选节次时，先看每栋楼今天有多少空教室。`)
-    : `${icon('spark')}点教室卡片查看本周 7×13 日程；不用先选节次。`;
+    : `${icon('spark')}点教室卡片查看本周 7×12 日程；不用先选节次。`;
   document.body.dataset.view = viewMode;
   renderFloorTabs();
 }
@@ -381,13 +382,14 @@ function renderPeriodPicker() {
         }).join('')}
       </div>
     </div>`).join('');
-  $('period-selection-count').textContent = selectedPeriods.size ? `已选 ${selectedPeriods.size} 节` : '不选 = 看今日概览';
+  const chosen = selectedPeriodList();
+  $('period-selection-count').textContent = chosen.length ? `已选 ${chosen.length} 节` : '不选 = 看今日概览';
   document.querySelectorAll('.period-preset').forEach(button => {
     const periods = button.dataset.periods ? button.dataset.periods.split(',').map(Number) : [];
-    const active = periods.length > 0 && periods.length === selectedPeriods.size && periods.every(period => selectedPeriods.has(period));
+    const active = periods.length > 0 && periods.length === chosen.length && periods.every(period => selectedPeriods.has(period));
     button.setAttribute('aria-pressed', String(active));
   });
-  document.querySelector('.period-clear').disabled = !selectedPeriods.size;
+  document.querySelector('.period-clear').disabled = !chosen.length;
 }
 
 function togglePeriod(period, {fromMatrix = false} = {}) {
@@ -460,9 +462,9 @@ function syncDateLabels() {
 }
 
 function periodStrip(state) {
-  return Array.from({length:13}, (_,i) => {
-    const bit=1<<i, status = state.unknownMask & bit ? 'unknown' : state.occupiedMask & bit ? 'busy' : 'free';
-    return `<span class="period-cell ${status}${selectedPeriods.has(i+1) ? ' selected' : ''}" title="第 ${i+1} 节 ${{free:'空闲',busy:'占用',unknown:'未知'}[status]}">${i+1}</span>`;
+  return VISIBLE_PERIODS.map(period => {
+    const bit=1<<(period-1), status = state.unknownMask & bit ? 'unknown' : state.occupiedMask & bit ? 'busy' : 'free';
+    return `<span class="period-cell ${status}${selectedPeriods.has(period) ? ' selected' : ''}" title="第 ${period} 节 ${{free:'空闲',busy:'占用',unknown:'未知'}[status]}">${period}</span>`;
   }).join('');
 }
 function roomCard(entry, index) {
@@ -484,7 +486,7 @@ function roomCard(entry, index) {
       </div>
       <div class="room-streak" title="${streak ? `最长连续空闲 ${streak} 节` : allUnknown ? '今天没有可用数据' : '今天没有记录到整段空闲'}"><strong>${streak || '—'}</strong><span>${streakLabel}</span></div>
     </div>
-    <div class="period-strip" aria-label="第 1 到 13 节状态">${periodStrip(state)}</div>
+    <div class="period-strip" aria-label="第 1–8、10–13 节状态">${periodStrip(state)}</div>
     <p class="room-intervals">${esc(freeLabel)}</p>
     <div class="room-card-foot">
       <div class="room-facts">
@@ -592,7 +594,7 @@ function renderMatrix(entries) {
   $('matrix-wrap').hidden = false;
   $('load-more').hidden = true;
   moreObserver.disconnect();
-  const periods = Array.from({length: 13}, (_, index) => index + 1);
+  const periods = VISIBLE_PERIODS;
   const counts = periods.map(period => entries.reduce((total, {state}) => {
     const bit = 1 << (period - 1);
     return total + ((state.freeMask & bit) && !(state.unknownMask & bit) ? 1 : 0);
@@ -609,7 +611,7 @@ function renderMatrix(entries) {
       ${cells}
     </tr>`;
   }).join('');
-  $('matrix-wrap').innerHTML = `<div class="matrix-hint">${icon('spark')}${matchMedia('(max-width: 640px)').matches ? '左右滑动看 13 节；' : ''}点列头切换节次；点教室行看本周。</div><div class="matrix-scroll"><table class="matrix" aria-label="教室与节次日程表"><thead>${head}</thead><tbody>${rows}</tbody></table></div>`;
+  $('matrix-wrap').innerHTML = `<div class="matrix-hint">${icon('spark')}${matchMedia('(max-width: 640px)').matches ? '左右滑动看 12 节；' : ''}点列头切换节次；点教室行看本周。</div><div class="matrix-scroll"><table class="matrix" aria-label="教室与节次日程表"><thead>${head}</thead><tbody>${rows}</tbody></table></div>`;
 }
 function renderFloorStack(entries) {
   $('room-grid').replaceChildren();
@@ -873,10 +875,11 @@ function roomWeekMarkup(room, weekData) {
   const dayNames = ['周一','周二','周三','周四','周五','周六','周日'];
   const rows = weekData.map(({date, day, state: itemState, unavailable, error}) => {
     const state = itemState || day?.rooms?.[index];
-    const cells = Array.from({length:13}, (_,i) => {
-      const status = !state ? 'none' : state.unknownMask & (1<<i) ? 'unknown' : state.occupiedMask & (1<<i) ? 'busy' : 'free';
-      const chosen = selectedPeriods.has(i+1) ? ' chosen' : '';
-      return `<td class="week-cell ${status}${chosen}" title="${dayNames[weekdayIndex(date)]} 第 ${i+1} 节 ${status === 'none' ? '无数据' : {free:'空闲',busy:'占用',unknown:'未知'}[status]}" aria-label="${dayNames[weekdayIndex(date)]} 第 ${i+1} 节 ${status === 'none' ? '无数据' : {free:'空闲',busy:'占用',unknown:'未知'}[status]}"></td>`;
+    const cells = VISIBLE_PERIODS.map(period => {
+      const bit=1<<(period-1);
+      const status = !state ? 'none' : state.unknownMask & bit ? 'unknown' : state.occupiedMask & bit ? 'busy' : 'free';
+      const chosen = selectedPeriods.has(period) ? ' chosen' : '';
+      return `<td class="week-cell ${status}${chosen}" title="${dayNames[weekdayIndex(date)]} 第 ${period} 节 ${status === 'none' ? '无数据' : {free:'空闲',busy:'占用',unknown:'未知'}[status]}" aria-label="${dayNames[weekdayIndex(date)]} 第 ${period} 节 ${status === 'none' ? '无数据' : {free:'空闲',busy:'占用',unknown:'未知'}[status]}"></td>`;
     }).join('');
     return `<tr class="${date === today ? 'today' : ''}">
       <th scope="row"><button type="button" class="week-day" data-week-date="${date}" title="在主页查看 ${prettyDate(date)}">${dayNames[weekdayIndex(date)]}<small>${shortDate(date)}${unavailable ? ' · 学期外' : error ? ' · 读取失败' : ''}</small></button></th>
@@ -896,10 +899,10 @@ function roomWeekMarkup(room, weekData) {
     <div class="detail-date"><strong>${prettyDate(today)}</strong><span>第 ${teachingWeek(today,catalog.term)} 周</span></div>
     <div class="legend"><span><i></i>空闲</span><span><i class="busy"></i>占用</span><span><i class="unknown"></i>未知</span><span><i class="chosen"></i>所选</span></div>
     <div class="week-scroll">
-      <table class="week-table" aria-label="本周 13 节安排">
+      <table class="week-table" aria-label="本周 12 节安排（无第9节）">
         <thead>
-          <tr class="week-groups"><th aria-hidden="true"></th><th colspan="4">上午</th><th colspan="5">下午</th><th colspan="4">晚上</th></tr>
-          <tr class="week-periods"><th aria-hidden="true"></th>${Array.from({length:13},(_,i)=>`<th>${i+1}</th>`).join('')}</tr>
+          <tr class="week-groups"><th aria-hidden="true"></th>${PERIOD_GROUPS.map(group=>`<th colspan="${group.periods.length}">${group.label}</th>`).join('')}</tr>
+          <tr class="week-periods"><th aria-hidden="true"></th>${VISIBLE_PERIODS.map(period=>`<th>${period}</th>`).join('')}</tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
@@ -909,7 +912,7 @@ function roomWeekMarkup(room, weekData) {
       <span>${todaySummary}</span>
     </div>
     <p class="detail-caption">${chosenCaption}点日期可在主页查看当天。</p>
-    <p class="detail-note">排课快照不保证实际开放，未知节次不算空闲。数据不含钟点时间，第 1–13 节对应学校节次。</p>`;
+    <p class="detail-note">排课快照不保证实际开放，未知节次不算空闲。数据不含钟点时间，站内只展示第 1–8、10–13 节（学校无第9节）。</p>`;
 }
 async function openRoom(roomId, trigger, {fromUrl = false} = {}) {
   const room = roomById.get(roomId);
@@ -991,7 +994,7 @@ async function initialize() {
     controls.building.value = [...controls.building.options].some(option=>option.value===requestedBuilding) ? requestedBuilding : '';
     renderTypeOptions();
     controls.type.value = [...controls.type.options].some(option=>option.value===requestedType) ? requestedType : '';
-    selectedPeriods=new Set(requestedPeriods || []);
+    selectedPeriods=sanitizePeriods(requestedPeriods || []);
     currentFloor=requestedFloor || '';
     if (useUrl && initialUrlState.room) activeRoomId = initialUrlState.room;
     controls.search.value=requestedSearch || '';
@@ -1095,7 +1098,7 @@ $('period-picker').addEventListener('click',event=>{
 });
 $('period-presets').addEventListener('click',event=>{
   const button=event.target.closest('button[data-periods]');if(!button)return;
-  selectedPeriods=new Set(button.dataset.periods?button.dataset.periods.split(',').map(Number):[]);
+  selectedPeriods=sanitizePeriods(button.dataset.periods?button.dataset.periods.split(',').map(Number):[]);
   renderPeriodPicker();renderResults();
 });
 for(const control of [controls.capacity,controls.type])control.addEventListener('change',()=>{renderPeriodPicker();renderResults();});

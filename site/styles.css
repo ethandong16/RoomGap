@@ -282,7 +282,7 @@ html.is-scrolled .site-header { border-color: var(--line); box-shadow: 0 8px 24p
 .room-streak { display: flex; flex: 0 0 auto; align-items: baseline; gap: 3px; padding-left: 11px; border-left: 1px solid var(--line); }
 .room-streak strong { color: var(--pine); font-family: var(--font-display); font-size: 32px; font-weight: 500; line-height: .9; font-variant-numeric: tabular-nums; }
 .room-streak span { color: var(--muted); font-size: 8px; line-height: 1.35; }
-.period-strip { display: grid; grid-template-columns: repeat(13, minmax(0, 1fr)); gap: 3px; }
+.period-strip { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 3px; }
 .period-cell { display: grid; min-width: 0; height: 22px; place-items: center; border-radius: 5px; color: var(--muted); background: var(--paper-deep); font-family: var(--font-mono); font-size: 8px; font-variant-numeric: tabular-nums; }
 .period-cell.free { color: var(--pine); background: var(--pine-soft); }
 .period-cell.busy { color: color-mix(in srgb, var(--muted) 70%, transparent); background: var(--paper-deep); }

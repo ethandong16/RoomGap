@@ -1,24 +1,25 @@
-// The catalog exposes 13 small periods; a normal class is two small periods
-// (about 1 h 40 min). Times are a reference table and must be checked against
-// the school bell. Keep this file as the single source of truth.
+// The catalog exposes 13 small periods; the school has no ninth class.
+// A normal class is two small periods (about 1 h 40 min). Times are a
+// reference table and must be checked against the school bell.
 export const BELL_SCHEDULE = {
-  version: 2,
+  version: 3,
   verified: false,
-  source: '参考作息：08:20 第一节课；整节约 1 小时 40 分钟（两小节）；待学校实际铃声核对',
+  source: '参考作息：08:20 第一节课，无第9节；整节约 1 小时 40 分钟（两小节）；待学校实际铃声核对',
   blocks: [
     {label: '第1–2节', periods: [1, 2], start: '08:20', end: '10:00', group: '上午'},
     {label: '第3–4节', periods: [3, 4], start: '10:20', end: '12:00', group: '上午'},
     {label: '第5–6节', periods: [5, 6], start: '13:30', end: '15:10', group: '下午'},
-    {label: '第7–8节', periods: [7, 8], start: '15:30', end: '17:10', group: '下午'},
-    {label: '第9节', periods: [9], start: '17:20', end: '18:05', group: '下午'},
+    {label: '第7–8节', periods: [7, 8], start: '15:25', end: '17:05', group: '下午'},
     {label: '第10–11节', periods: [10, 11], start: '18:30', end: '20:10', group: '晚上'},
     {label: '第12–13节', periods: [12, 13], start: '20:20', end: '22:00', group: '晚上'}
   ]
 };
 
+export const VISIBLE_PERIODS = [1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13];
+
 export const PERIOD_GROUPS = [
   {label: '上午', periods: [1, 2, 3, 4]},
-  {label: '下午', periods: [5, 6, 7, 8, 9]},
+  {label: '下午', periods: [5, 6, 7, 8]},
   {label: '晚上', periods: [10, 11, 12, 13]}
 ];
 
