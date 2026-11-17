@@ -523,12 +523,10 @@ dialog::backdrop { background: var(--backdrop); backdrop-filter: blur(6px); }
   box-shadow: 0 0 0 1px var(--line), 0 3px 10px rgb(0 0 0 / 5%);
 }
 .view-panel { margin-top: 16px; }
-.period-label small { margin-left: 4px; color: var(--muted); font-size: 9px; font-weight: 500; }
 .period-bands { display: grid; gap: 8px; margin-top: 11px; }
 .period-band { display: grid; grid-template-columns: 40px minmax(0, 1fr); align-items: center; gap: 8px; }
 .period-band-label { display: flex; flex-direction: column; gap: 1px; color: var(--ink-soft); line-height: 1.2; }
 .period-band-label strong { font-size: 10px; font-weight: 700; }
-.period-band-label span { color: var(--muted); font-family: var(--font-mono); font-size: 8px; }
 .period-band-cells { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 5px; }
 .period-band .period-option { min-height: 54px; }
 .period-band .period-option span { max-width: 100%; overflow: hidden; font-size: 9px; line-height: 1.1; text-overflow: ellipsis; white-space: nowrap; }
@@ -722,7 +720,6 @@ dialog::backdrop { background: var(--backdrop); backdrop-filter: blur(6px); }
 .floor-slab-rooms { display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start; }
 .floor-room { display: flex; min-width: 64px; min-height: 46px; flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; padding: 4px 7px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--paper-deep); text-align: left; transition: transform .18s var(--ease-spring), border-color .18s ease, background-color .18s ease; touch-action: manipulation; }
 .floor-room span { max-width: 88px; overflow: hidden; font-size: 10px; font-weight: 680; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
-.floor-room small { color: var(--muted); font-size: 8px; }
 .floor-room.free { border-color: color-mix(in srgb, var(--pine) 24%, var(--line)); background: var(--pine-soft); }
 .floor-room.busy { background: var(--paper-deep); }
 .floor-room.unknown { border-color: color-mix(in srgb, var(--brass) 35%, var(--line)); background: var(--brass-soft); }

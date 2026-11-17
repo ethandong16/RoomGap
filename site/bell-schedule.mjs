@@ -1,24 +1,18 @@
-// Reference bell schedule. Keep this file as the single source of truth.
-// The school's catalog does not publish clock times; when the official bell
-// times are confirmed, update `periods`, set `verified: true` and `source`.
+// The catalog exposes 13 small periods; a normal class is two small periods
+// (about 1 h 40 min). Times are a reference table and must be checked against
+// the school bell. Keep this file as the single source of truth.
 export const BELL_SCHEDULE = {
-  version: 1,
+  version: 2,
   verified: false,
-  source: '参考作息：45 分钟一节；待学校实际铃声核对',
-  periods: [
-    {period: 1, start: '08:00', end: '08:45', group: '上午'},
-    {period: 2, start: '08:55', end: '09:40', group: '上午'},
-    {period: 3, start: '10:00', end: '10:45', group: '上午'},
-    {period: 4, start: '10:55', end: '11:40', group: '上午'},
-    {period: 5, start: '13:30', end: '14:15', group: '下午'},
-    {period: 6, start: '14:20', end: '15:05', group: '下午'},
-    {period: 7, start: '15:25', end: '16:10', group: '下午'},
-    {period: 8, start: '16:15', end: '17:00', group: '下午'},
-    {period: 9, start: '17:05', end: '17:50', group: '下午'},
-    {period: 10, start: '18:30', end: '19:15', group: '晚上'},
-    {period: 11, start: '19:20', end: '20:05', group: '晚上'},
-    {period: 12, start: '20:10', end: '20:55', group: '晚上'},
-    {period: 13, start: '21:00', end: '21:45', group: '晚上'}
+  source: '参考作息：08:20 第一节课；整节约 1 小时 40 分钟（两小节）；待学校实际铃声核对',
+  blocks: [
+    {label: '第1–2节', periods: [1, 2], start: '08:20', end: '10:00', group: '上午'},
+    {label: '第3–4节', periods: [3, 4], start: '10:20', end: '12:00', group: '上午'},
+    {label: '第5–6节', periods: [5, 6], start: '13:30', end: '15:10', group: '下午'},
+    {label: '第7–8节', periods: [7, 8], start: '15:30', end: '17:10', group: '下午'},
+    {label: '第9节', periods: [9], start: '17:20', end: '18:05', group: '下午'},
+    {label: '第10–11节', periods: [10, 11], start: '18:30', end: '20:10', group: '晚上'},
+    {label: '第12–13节', periods: [12, 13], start: '20:20', end: '22:00', group: '晚上'}
   ]
 };
 
@@ -44,16 +38,16 @@ export function beijingClock(now = new Date()) {
 
 export function periodAt(now = new Date(), schedule = BELL_SCHEDULE) {
   const clock = beijingClock(now);
-  const current = schedule.periods.find(item => clock.minutes >= minutesOf(item.start) && clock.minutes < minutesOf(item.end)) || null;
-  const next = schedule.periods.find(item => clock.minutes < minutesOf(item.start)) || null;
+  const current = schedule.blocks.find(block => clock.minutes >= minutesOf(block.start) && clock.minutes < minutesOf(block.end)) || null;
+  const next = schedule.blocks.find(block => clock.minutes < minutesOf(block.start)) || null;
   return {clock, current, next};
 }
 
-export function formatPeriod(period) {
-  return `第 ${period.period} 节 · ${period.start}–${period.end}`;
+export function formatPeriod(block) {
+  return `${block.label} · ${block.start}–${block.end}`;
 }
 
 export function groupRange(periods, schedule = BELL_SCHEDULE) {
-  const selected = schedule.periods.filter(item => periods.includes(item.period));
-  return selected.length ? `${selected[0].start}–${selected[selected.length - 1].end}` : '';
+  const blocks = schedule.blocks.filter(block => block.periods.some(period => periods.includes(period)));
+  return blocks.length ? `${blocks[0].start}–${blocks[blocks.length - 1].end}` : '';
 }

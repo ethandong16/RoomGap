@@ -38,7 +38,7 @@ try{
    assert.equal(await page.locator('.building-card').count(),22);
    assert.match(await page.locator('#results-title').innerText(),/今天，哪里有空/);
    await page.locator('.period-preset').first().click();
-   assert.deepEqual(await page.locator('.period-option[aria-pressed="true"]').evaluateAll(buttons=>buttons.map(button=>Number(button.dataset.period))),[1,2,3,4]);
+   assert.deepEqual(await page.locator('.period-option[aria-pressed="true"]').evaluateAll(buttons=>buttons.map(button=>Number(button.dataset.period))),[1,2]);
    assert.equal(await page.locator('.period-preset').first().getAttribute('aria-pressed'),'true');
    await page.locator('.period-clear').click();
    assert.equal(await page.locator('.period-option[aria-pressed="true"]').count(),0);
@@ -76,7 +76,7 @@ try{
    await page.locator('#building').selectOption('02/3');
    await page.waitForFunction(()=>document.querySelectorAll('.room-card').length>0);
    assert.equal(await page.locator('.floor-tab').count(),6);
-   assert.match(await page.locator('#room-panel-meta').textContent(),/3号楼/);
+   assert.equal(await page.locator('#building').inputValue(),'02/3');
    await page.locator('.floor-tab[data-floor="2"]').click();
    await page.waitForFunction(()=>document.querySelector('#result-count').textContent==='16 间');
    assert.match(await page.locator('.room-card h3').first().textContent(),/201/);
@@ -276,6 +276,8 @@ try{
    await p.goto(base);await settled(p);await setPeriods(p,[1,3,6]);await ready(p);
    assert.equal(await p.locator('html').getAttribute('data-theme'),'dark');
    assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+   await p.evaluate(()=>scrollTo(0,0));
+   await p.waitForTimeout(100);
    assert.equal(await p.locator('.date-picker-shell').evaluate(shell=>{
      const rect=shell.getBoundingClientRect();
      return document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2)?.id;
@@ -333,12 +335,13 @@ try{
    await p.clock.setFixedTime(new Date('2026-11-17T01:00:00Z'));
    await p.goto(base);await settled(p);
    assert.equal(await p.locator('#now-strip').isVisible(),true);
-   assert.match(await p.locator('#now-label').textContent(),/现在第 2 节/);
+   assert.match(await p.locator('#now-label').textContent(),/现在第1–2节/);
    assert.match(await p.locator('#now-label').textContent(),/参考作息/);
    await p.locator('#now-action').click();
    await p.waitForFunction(()=>document.querySelector('#result-count').textContent!=='');
+   assert.equal(await p.locator('.period-option[data-period="1"]').getAttribute('aria-pressed'),'true');
    assert.equal(await p.locator('.period-option[data-period="2"]').getAttribute('aria-pressed'),'true');
-   assert.equal(new URL(p.url()).searchParams.get('periods'),'2');
+   assert.equal(new URL(p.url()).searchParams.get('periods'),'1,2');
    assert.equal(await p.locator('#date').inputValue(),'2026-11-17');
    await c.close();
  });

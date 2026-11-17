@@ -20,7 +20,7 @@
 
 ## 参考作息与“现在/下一节”
 
-网站不采集学校铃声时间，`site/bell-schedule.mjs` 是唯一的参考作息配置。默认 `verified: false`，页面会标注“参考作息”，只把当前时间映射到节次，不把排课快照当作实时占用。按学校实际铃声核对后，修改 `periods`、填写 `source`，再把 `verified` 设为 `true`；构建时该文件会原样复制到 `dist`，不需要重新采集数据。
+网站不采集学校铃声时间，`site/bell-schedule.mjs` 是唯一的参考作息配置。默认 `verified: false`，页面会标注“参考作息”，只把当前时间映射到整节（两小节，约 1 小时 40 分钟），不把排课快照当作实时占用。按学校实际铃声核对后，修改 `blocks`、填写 `source`，再把 `verified` 设为 `true`；构建时该文件会原样复制到 `dist`，不需要重新采集数据。
 
 如果学校调整作息，只改这一处并重新执行 `node scripts/build-site.mjs`。不要把节次时间写进 `term.json` 或 `days/`，那些文件来自教务接口，重新采集会被覆盖。
 

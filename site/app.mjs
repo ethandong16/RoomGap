@@ -5,7 +5,7 @@ import {
   overviewByBuilding, periodCounts, weekDates, formatInterval, formatIntervals,
   longestFreeInterval
 } from './query.mjs';
-import {BELL_SCHEDULE, PERIOD_GROUPS, periodAt, formatPeriod, groupRange} from './bell-schedule.mjs';
+import {BELL_SCHEDULE, PERIOD_GROUPS, periodAt, groupRange} from './bell-schedule.mjs';
 import {freeIntervals} from './semester-model.mjs';
 
 const $ = id => document.getElementById(id);
@@ -46,7 +46,7 @@ let dialogToken = 0;
 let lastTrackedQuery = '';
 let activeRoomId = null;
 let applyingUrl = false;
-let nowPeriod = null;
+let nowBlock = null;
 let roomClosing = false;
 const initialUrlState = parseUrlState();
 
@@ -265,10 +265,10 @@ function renderBellSchedule() {
   if (summary.firstChild) summary.firstChild.textContent = BELL_SCHEDULE.verified ? '学校作息 ' : '参考作息 ';
   $('bell-schedule').title = BELL_SCHEDULE.source;
   $('bell-schedule-list').innerHTML = PERIOD_GROUPS.map(group => {
-    const periods = BELL_SCHEDULE.periods.filter(period => group.periods.includes(period.period));
+    const blocks = BELL_SCHEDULE.blocks.filter(block => block.periods.some(period => group.periods.includes(period)));
     return `<div class="bell-group">
       <div class="bell-group-head"><strong>${group.label}</strong><span>${groupRange(group.periods)}</span></div>
-      ${periods.map(period => `<div class="bell-row"><span>第 ${period.period} 节</span><span>${period.start}–${period.end}</span></div>`).join('')}
+      ${blocks.map(block => `<div class="bell-row"><span>${block.label}</span><span>${block.start}–${block.end}</span></div>`).join('')}
     </div>`;
   }).join('');
   document.querySelector('.bell-schedule-note').textContent = `${BELL_SCHEDULE.source}；不是教务系统采集，以学校实际铃声为准。`;
@@ -279,25 +279,25 @@ function renderNow() {
   strip.title = '按排课快照和参考作息计算；不代表实时占用，以学校实际安排为准。';
   if (!catalog || controls.date.value !== beijingDate() || !dateInTerm(controls.date.value, catalog.term)) {
     strip.hidden = true;
-    nowPeriod = null;
+    nowBlock = null;
     return;
   }
   const {current, next} = periodAt();
   const target = current || next;
   if (!target) {
     strip.hidden = true;
-    nowPeriod = null;
+    nowBlock = null;
     return;
   }
-  nowPeriod = target;
-  const beforeFirst = next?.period === 1;
+  nowBlock = target;
+  const beforeFirst = Boolean(next?.periods.includes(1));
   const label = current
-    ? `现在第 ${current.period} 节 · ${current.start}–${current.end}`
+    ? `现在${current.label} · ${current.start}–${current.end}`
     : beforeFirst
-      ? `第一节 ${next.start} 开始`
-      : `下一节 第 ${next.period} 节 · ${next.start}–${next.end}`;
+      ? `${next.label} ${next.start} 开始`
+      : `下一节 ${next.label} · ${next.start}–${next.end}`;
   $('now-label').textContent = `${label}${BELL_SCHEDULE.verified ? '' : ' · 参考作息'}`;
-  $('now-action').textContent = current ? '看这一节' : '看下一节';
+  $('now-action').textContent = current ? '看这节' : '看下一节';
   $('now-action').hidden = false;
   strip.hidden = false;
 }
@@ -329,6 +329,8 @@ function renderFloorTabs() {
     currentFloor = '';
     $('floor-row').hidden = true;
     $('floor-tabs').replaceChildren();
+    $('room-panel').hidden = viewMode !== 'room';
+    $('room-panel-meta').hidden = false;
     $('room-panel-meta').textContent = '先选一栋教学楼，或直接在下方楼栋概览里点选。';
     return;
   }
@@ -355,8 +357,8 @@ function renderFloorTabs() {
       return `<button type="button" class="floor-tab${selected ? ' selected' : ''}" data-floor="${value}" aria-pressed="${selected}">${label} <small>${counts.get(value)}</small></button>`;
     })
   ].join('');
-  const knownFloors = floors.filter(floor => floor !== 'unknown');
-  $('room-panel-meta').textContent = `${buildingLabelFromKey(key)} · ${rooms.length} 间 · ${knownFloors.length ? `${knownFloors.length} 层` : '楼层未标注'}${knownFloors.length && counts.has('unknown') ? ' · 含未标注' : ''}`;
+  $('room-panel-meta').hidden = true;
+  $('room-panel').hidden = true;
   $('back-to-buildings').textContent = viewMode === 'room' || !selectedPeriods.size ? '返回楼栋' : '全部教学楼';
 }
 
@@ -364,13 +366,12 @@ function renderPeriodPicker() {
   const counts = currentDay && catalog ? periodCounts(catalog.rooms, currentDay, baseFilters()) : null;
   const bands = PERIOD_GROUPS.map(group => ({
     label: group.label,
-    range: `${group.periods[0]}–${group.periods.at(-1)}`,
     times: groupRange(group.periods),
     periods: group.periods
   }));
   $('period-picker').innerHTML = bands.map(band => `
     <div class="period-band" title="${band.times}">
-      <div class="period-band-label"><strong>${band.label}</strong><span>${band.range}</span></div>
+      <div class="period-band-label"><strong>${band.label}</strong></div>
       <div class="period-band-cells">
         ${band.periods.map(period => {
           const selected = selectedPeriods.has(period);
@@ -397,7 +398,7 @@ function togglePeriod(period, {fromMatrix = false} = {}) {
   const target = fromMatrix
     ? document.querySelector(`.matrix-period[data-matrix-period="${period}"]`)
     : document.querySelector(`.period-option[data-period="${period}"]`);
-  (target || document.querySelector(`.period-option[data-period="${period}"]`))?.focus();
+  (target || document.querySelector(`.period-option[data-period="${period}"]`))?.focus({preventScroll: true});
 }
 function closeRoomDialog() {
   if (!$('room-dialog').open || roomClosing) return;
@@ -626,7 +627,7 @@ function renderFloorStack(entries) {
   }
   const order = [...groups.keys()].sort((a, b) => a === 'unknown' ? 1 : b === 'unknown' ? -1 : Number(b) - Number(a));
   const activePeriods = selectedPeriodList();
-  $('floor-stack').innerHTML = `<div class="floor-stack-head"><span>${icon('door')}楼层剖面</span><small>示意，不是平面图；楼层按房号推断</small></div>` + order.map((floor, index) => {
+  $('floor-stack').innerHTML = `<div class="floor-stack-head"><span>${icon('door')}楼层剖面</span><small>示意，非平面图</small></div>` + order.map((floor, index) => {
     const rooms = groups.get(floor).sort((a, b) => a.room.name.localeCompare(b.room.name, 'zh-CN'));
     const freeCount = rooms.filter(({state}) => floorStackStatus(state, activePeriods).status === 'free').length;
     const active = currentFloor === floor;
@@ -638,7 +639,7 @@ function renderFloorStack(entries) {
       <div class="floor-slab-rooms">
         ${rooms.map(({room, state}) => {
           const info = floorStackStatus(state, activePeriods);
-          return `<button type="button" class="floor-room ${info.status}" data-room-id="${esc(room.id)}" aria-label="${esc(room.name)} ${info.label}，查看本周安排" title="${esc(room.name)} · ${info.label}"><span>${esc(room.name)}</span><small>${info.label}</small></button>`;
+          return `<button type="button" class="floor-room ${info.status}" data-room-id="${esc(room.id)}" aria-label="${esc(room.name)} ${info.label}，查看本周安排" title="${esc(room.name)} · ${info.label}"><span>${esc(room.name)}</span></button>`;
         }).join('')}
       </div>
     </section>`;
@@ -1085,7 +1086,7 @@ $('floor-tabs').addEventListener('click',event=>{
   renderFloorTabs();
   renderPeriodPicker();
   renderResults();
-  document.querySelector(`.floor-tab[data-floor="${CSS.escape(floor)}"]`)?.focus();
+  document.querySelector(`.floor-tab[data-floor="${CSS.escape(floor)}"]`)?.focus({preventScroll: true});
 });
 $('back-to-buildings').addEventListener('click',backToBuildings);
 $('period-picker').addEventListener('click',event=>{
@@ -1118,15 +1119,15 @@ $('floor-stack').addEventListener('click',event=>{
     const floor=floorButton.dataset.stackFloor;
     currentFloor=floor;
     renderFloorTabs();renderPeriodPicker();renderResults();
-    document.querySelector(`.floor-slab-label[data-stack-floor="${CSS.escape(floor)}"]`)?.focus();
+    document.querySelector(`.floor-slab-label[data-stack-floor="${CSS.escape(floor)}"]`)?.focus({preventScroll: true});
   }
 });
 $('now-action').addEventListener('click',async()=>{
-  if(!nowPeriod||!catalog)return;
-  analytics.track('now_period',{period:nowPeriod.period,verified:BELL_SCHEDULE.verified});
+  if(!nowBlock||!catalog)return;
+  analytics.track('now_period',{periods:nowBlock.periods,block:nowBlock.label,verified:BELL_SCHEDULE.verified});
   controls.date.value=beijingDate();
   viewMode='time';resultsView='cards';
-  selectedPeriods=new Set([nowPeriod.period]);
+  selectedPeriods=new Set(nowBlock.periods);
   updateViewChrome();renderPeriodPicker();updateUrl({push:true});
   if(currentDay?.date!==controls.date.value)await loadSelectedDay();
   else renderResults();
