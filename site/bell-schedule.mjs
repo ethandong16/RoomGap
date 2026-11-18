@@ -1,12 +1,11 @@
 // The catalog exposes 13 small periods. A normal teaching class is two small
 // periods (about 1 h 40 min). Period 9 is not a teaching class, but it is kept
 // as a queryable gap because rooms are usually free between afternoon and
-// evening classes. Times are a reference table and must be checked against the
-// school bell.
+// evening classes. Times below are the confirmed school bell schedule.
 export const BELL_SCHEDULE = {
-  version: 4,
-  verified: false,
-  source: '参考作息：08:20 第一节课；第9节为非教学空档；整节约 1 小时 40 分钟（两小节）；待学校实际铃声核对',
+  version: 5,
+  verified: true,
+  source: '学校作息：08:20 第一节课；第9节为非教学空档；整节约 1 小时 40 分钟（两小节）',
   blocks: [
     {label: '第1–2节', periods: [1, 2], start: '08:20', end: '10:00', group: '上午'},
     {label: '第3–4节', periods: [3, 4], start: '10:20', end: '12:00', group: '上午'},

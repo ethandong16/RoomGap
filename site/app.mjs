@@ -259,11 +259,6 @@ function renderTypeOptions() {
 }
 
 function renderBellSchedule() {
-  const status = $('bell-schedule-status');
-  status.textContent = BELL_SCHEDULE.verified ? '已核对' : '待校方核对';
-  status.classList.toggle('verified', BELL_SCHEDULE.verified);
-  const summary = $('bell-schedule').querySelector('summary');
-  if (summary.firstChild) summary.firstChild.textContent = BELL_SCHEDULE.verified ? '学校作息 ' : '参考作息 ';
   $('bell-schedule').title = BELL_SCHEDULE.source;
   $('bell-schedule-list').innerHTML = PERIOD_GROUPS.map(group => {
     const blocks = BELL_SCHEDULE.blocks.filter(block => block.periods.some(period => group.periods.includes(period)));
@@ -272,12 +267,11 @@ function renderBellSchedule() {
       ${blocks.map(block => `<div class="bell-row"><span>${block.label}</span><span>${block.start}–${block.end}</span></div>`).join('')}
     </div>`;
   }).join('');
-  document.querySelector('.bell-schedule-note').textContent = `${BELL_SCHEDULE.source}；不是教务系统采集，以学校实际铃声为准。`;
 }
 
 function renderNow() {
   const strip = $('now-strip');
-  strip.title = '按排课快照和参考作息计算；不代表实时占用，以学校实际安排为准。';
+  strip.title = '按排课快照和学校作息计算；不代表实时占用，以学校实际安排为准。';
   if (!catalog || controls.date.value !== beijingDate() || !dateInTerm(controls.date.value, catalog.term)) {
     strip.hidden = true;
     nowBlock = null;
@@ -298,8 +292,6 @@ function renderNow() {
       ? `${next.label} ${next.start} 开始`
       : `下一节 ${next.label} · ${next.start}–${next.end}`;
   $('now-label').textContent = label;
-  $('now-ref').hidden = BELL_SCHEDULE.verified;
-  $('now-ref').title = BELL_SCHEDULE.source;
   $('now-action').textContent = current ? '看这节' : '看下一节';
   $('now-action').hidden = false;
   strip.hidden = false;
@@ -333,8 +325,6 @@ function renderFloorTabs() {
     $('floor-row').hidden = true;
     $('floor-tabs').replaceChildren();
     $('room-panel').hidden = viewMode !== 'room';
-    $('room-panel-meta').hidden = false;
-    $('room-panel-meta').textContent = '先选一栋教学楼，或直接在下方楼栋概览里点选。';
     return;
   }
   const rooms = catalog.candidates.filter(room => buildingKey(room) === key);
@@ -360,7 +350,6 @@ function renderFloorTabs() {
       return `<button type="button" class="floor-tab${selected ? ' selected' : ''}" data-floor="${value}" aria-pressed="${selected}">${label} <small>${counts.get(value)}</small></button>`;
     })
   ].join('');
-  $('room-panel-meta').hidden = true;
   $('room-panel').hidden = true;
   $('back-to-buildings').textContent = viewMode === 'room' || !selectedPeriods.size ? '返回楼栋' : '全部教学楼';
 }

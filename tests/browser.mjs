@@ -338,14 +338,13 @@ try{
    assert.equal(new URL(p.url()).searchParams.has('room'),false);
    await c.close();
  });
- await check('now strip uses the reference bell schedule',async()=>{
+ await check('now strip uses the confirmed bell schedule',async()=>{
    const c=await context(),p=await c.newPage();
    await p.clock.setFixedTime(new Date('2026-11-17T01:00:00Z'));
    await p.goto(base);await settled(p);
    assert.equal(await p.locator('#now-strip').isVisible(),true);
    assert.match(await p.locator('#now-label').textContent(),/现在第1–2节/);
-   assert.equal(await p.locator('#now-ref').textContent(),'参考');
-   assert.equal(await p.locator('#now-ref').isVisible(),true);
+   assert.doesNotMatch(await p.locator('#now-strip').innerText(),/参考/);
    await p.locator('#now-action').click();
    await p.waitForFunction(()=>document.querySelector('#result-count').textContent!=='');
    assert.equal(await p.locator('.period-option[data-period="1"]').getAttribute('aria-pressed'),'true');

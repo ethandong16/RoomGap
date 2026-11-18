@@ -60,7 +60,6 @@
       <div id="now-strip" class="now-strip" hidden>
         <span class="now-dot" aria-hidden="true"></span>
         <span id="now-label" class="now-label"></span>
-        <span id="now-ref" class="now-ref" hidden>参考</span>
         <button id="now-action" class="now-action" type="button">看这一节</button>
       </div>
       <div class="query-panel-head">
@@ -140,9 +139,7 @@
             </div>
           </div>
 
-          <div id="room-panel" class="view-panel room-panel" role="tabpanel" aria-labelledby="view-room" hidden>
-            <p id="room-panel-meta" class="room-panel-meta">先选一栋教学楼，或直接在下方楼栋概览里点选。</p>
-          </div>
+          <div id="room-panel" class="view-panel room-panel" role="tabpanel" aria-labelledby="view-room" hidden></div>
 
           <div class="secondary-filters" aria-label="筛选工具">
             <div class="field search-field">
@@ -204,13 +201,12 @@
     <aside id="data-note" class="data-note">
       <p class="section-label"><span class="section-index">03</span>数据说明</p>
       <div class="data-note-body">
-        <p>排课空闲不保证实际开放，临时调整以学校安排为准；第9节不是教学课程，作为空档可查询，有记录占用时仍按占用显示。节次钟点为站点参考作息，不是教务系统实时数据。</p>
+        <p>排课空闲不保证实际开放，临时调整以学校安排为准；第9节不是教学课程，作为空档可查询，有记录占用时仍按占用显示。</p>
         <p class="data-meta" id="data-meta">正在读取数据更新时间</p>
         <p class="data-scope">共 <strong id="candidate-count">—</strong> 间候选教室，覆盖 <strong id="campus-count">—</strong> 个校区、20 个教学周。收录普通教室及类型未明教室；已排除虚拟、体育及专用资源，容量为座位总数，不代表剩余座位。</p>
         <details id="bell-schedule" class="bell-schedule">
-          <summary>参考作息 <span id="bell-schedule-status" class="bell-badge">待校方核对</span></summary>
+          <summary>作息时间</summary>
           <div id="bell-schedule-list" class="bell-schedule-list"></div>
-          <p class="bell-schedule-note">作息为站点参考配置，不是教务系统采集；以学校实际铃声为准。</p>
         </details>
         <p class="analytics-note">楼层由房号前缀推断，无法确认的归入“未标注”。仅记录匿名访问、查询和教室详情事件，不收集账号、姓名或联系方式。</p>
       </div>

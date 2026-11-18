@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {BELL_SCHEDULE, PERIOD_GROUPS, VISIBLE_PERIODS, beijingClock, periodAt, formatPeriod, groupRange, minutesOf} from '../site/bell-schedule.mjs';
 
-test('reference schedule uses 100-minute class blocks and a ninth-period gap',()=>{
+test('confirmed schedule uses 100-minute class blocks and a ninth-period gap',()=>{
   assert.equal(BELL_SCHEDULE.blocks.length,7);
   assert.deepEqual(BELL_SCHEDULE.blocks.map(block=>block.periods),[[1,2],[3,4],[5,6],[7,8],[9],[10,11],[12,13]]);
   for(const block of BELL_SCHEDULE.blocks){
@@ -14,8 +14,8 @@ test('reference schedule uses 100-minute class blocks and a ninth-period gap',()
   assert.equal(minutesOf(BELL_SCHEDULE.blocks[4].end)-minutesOf(BELL_SCHEDULE.blocks[4].start),45);
   assert.deepEqual(VISIBLE_PERIODS,[1,2,3,4,5,6,7,8,9,10,11,12,13]);
   assert.deepEqual(PERIOD_GROUPS.map(group=>group.periods.length),[4,5,4]);
-  assert.equal(BELL_SCHEDULE.verified,false);
-  assert.match(BELL_SCHEDULE.source,/待.*核对/);
+  assert.equal(BELL_SCHEDULE.verified,true);
+  assert.doesNotMatch(BELL_SCHEDULE.source,/待/);
 });
 
 test('Beijing clock and current/next class blocks',()=>{
