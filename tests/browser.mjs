@@ -42,6 +42,7 @@ try{
    assert.equal(await page.locator('.period-preset').first().getAttribute('aria-pressed'),'true');
    await page.locator('.period-clear').click();
    assert.equal(await page.locator('.period-option[aria-pressed="true"]').count(),0);
+   assert.equal(await page.locator('.gap-preset').textContent(),'9');
    await page.locator('.gap-preset').click();
    assert.deepEqual(await page.locator('.period-option[aria-pressed="true"]').evaluateAll(buttons=>buttons.map(button=>Number(button.dataset.period))),[9]);
    assert.equal(await page.locator('.gap-preset').getAttribute('aria-pressed'),'true');
