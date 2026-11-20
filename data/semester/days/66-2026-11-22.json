@@ -1,1 +1,1 @@
-{"complete":true,"date":"2026-11-22","campusCode":"04","buildingCode":"12","buildingIndex":66,"roomCount":10,"teachingWeek":12,"weekday":7,"capturedAt":"2026-11-11T04:45:01.040Z","orphanRoomIds":[],"busy":[]}
+{"complete":true,"date":"2026-11-22","campusCode":"04","buildingCode":"12","buildingIndex":66,"roomCount":10,"teachingWeek":12,"weekday":7,"capturedAt":"2026-11-20T04:45:10.036Z","orphanRoomIds":[],"busy":[{"roomId":"04/12/309(d)","sessionType":"01","start":3,"length":1,"module":"room","weekMask":"000000000001000000000000","weekday":7}]}
