@@ -73,6 +73,16 @@ try{
    await page.locator('.period-clear').click();
  await page.screenshot({path:'artifacts/desktop.png'});
  });
+ await check('only the newly selected period animates',async()=>{
+   const animations=selector=>page.locator(selector).evaluate(el=>el.getAnimations().map(animation=>animation.animationName));
+   await page.locator('.period-option[data-period="1"]').click();
+   await page.waitForTimeout(380);
+   assert.deepEqual(await animations('.period-option[data-period="1"]'),[]);
+   await page.locator('.period-option[data-period="2"]').click();
+   assert.ok((await animations('.period-option[data-period="2"]')).includes('chipSet'));
+   assert.deepEqual(await animations('.period-option[data-period="1"]'),[]);
+   await page.locator('.period-clear').click();
+ });
  await check('room-first browser exposes buildings, floors and week schedule',async()=>{
    await page.locator('#view-room').click();
    await page.waitForFunction(()=>!document.querySelector('#overview-grid').hidden);

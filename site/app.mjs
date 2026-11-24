@@ -364,7 +364,7 @@ function renderFloorTabs() {
   $('back-to-buildings').textContent = viewMode === 'room' || !selectedPeriods.size ? '返回楼栋' : '全部教学楼';
 }
 
-function renderPeriodPicker() {
+function renderPeriodPicker(poppingPeriod = null) {
   const counts = currentDay && catalog ? periodCounts(catalog.rooms, currentDay, baseFilters()) : null;
   const bands = PERIOD_GROUPS.map(group => ({
     label: group.label,
@@ -380,7 +380,7 @@ function renderPeriodPicker() {
           const count = counts ? counts[period - 1] : null;
           const countText = count == null ? '—' : `${count} 间`;
           const gap = GAP_PERIODS.has(period);
-          return `<button type="button" class="period-option${selected ? ' selected' : ''}${count === 0 ? ' is-empty' : ''}${gap ? ' gap' : ''}" data-period="${period}" aria-pressed="${selected}" title="第 ${period} 节${gap ? ' · 非教学空档' : ''}" aria-label="第 ${period} 节${gap ? '，非教学空档' : ''}，${count == null ? '数量读取中' : `${count} 间空闲`}"><strong>${period}</strong><span>${countText}</span></button>`;
+          return `<button type="button" class="period-option${selected ? ' selected' : ''}${selected && period === poppingPeriod ? ' is-popping' : ''}${count === 0 ? ' is-empty' : ''}${gap ? ' gap' : ''}" data-period="${period}" aria-pressed="${selected}" title="第 ${period} 节${gap ? ' · 非教学空档' : ''}" aria-label="第 ${period} 节${gap ? '，非教学空档' : ''}，${count == null ? '数量读取中' : `${count} 间空闲`}"><strong>${period}</strong><span>${countText}</span></button>`;
         }).join('')}
       </div>
     </div>`).join('');
@@ -395,9 +395,10 @@ function renderPeriodPicker() {
 }
 
 function togglePeriod(period, {fromMatrix = false} = {}) {
-  if (selectedPeriods.has(period)) selectedPeriods.delete(period);
-  else selectedPeriods.add(period);
-  renderPeriodPicker();
+  const selecting = !selectedPeriods.has(period);
+  if (selecting) selectedPeriods.add(period);
+  else selectedPeriods.delete(period);
+  renderPeriodPicker(selecting ? period : null);
   renderResults();
   const target = fromMatrix
     ? document.querySelector(`.matrix-period[data-matrix-period="${period}"]`)

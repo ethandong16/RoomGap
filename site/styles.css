@@ -207,7 +207,8 @@ html.is-scrolled .site-header { border-color: var(--line); box-shadow: 0 8px 24p
 .period-option:active::after { opacity: 1; }
 .period-option strong { font-size: 14px; font-weight: 720; line-height: 1; font-variant-numeric: tabular-nums; }
 .period-option span { font-size: 8px; }
-.period-option.selected { border-color: var(--pine); color: var(--on-pine); background: var(--pine); box-shadow: 0 6px 16px color-mix(in srgb, var(--pine) 22%, transparent); animation: chipSet .3s var(--ease-spring); }
+.period-option.selected { border-color: var(--pine); color: var(--on-pine); background: var(--pine); box-shadow: 0 6px 16px color-mix(in srgb, var(--pine) 22%, transparent); }
+.period-option.is-popping { animation: chipSet .3s var(--ease-spring); }
 .period-option.selected span { color: color-mix(in srgb, var(--on-pine) 72%, transparent); }
 
 .query-actions { display: flex; flex-direction: column-reverse; gap: 11px; margin-top: 20px; }
