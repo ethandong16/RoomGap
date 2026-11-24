@@ -122,6 +122,13 @@ try{
    await page.locator('.matrix-period[data-matrix-period="1"]').click();
    await page.waitForFunction(()=>document.querySelector('.period-option[data-period="1"]').getAttribute('aria-pressed')==='true');
    assert.equal(await page.locator('.matrix-cell.chosen').count(),76);
+   const freeRow=page.locator('.matrix tbody tr').filter({has:page.locator('.matrix-cell.free:not(.chosen)')}).first();
+   const freeCell=freeRow.locator('.matrix-cell.free:not(.chosen)').first();
+   const freeBackground=await freeCell.evaluate(cell=>getComputedStyle(cell).backgroundColor);
+   await freeRow.hover();
+   assert.equal(await freeCell.evaluate(cell=>getComputedStyle(cell).backgroundColor),freeBackground);
+   assert.equal(await freeCell.evaluate(cell=>getComputedStyle(cell).backgroundImage!=='none'),true);
+   await page.mouse.move(0,0);
    await page.locator('.matrix tbody tr').first().click();
    await page.waitForSelector('.week-table');
    await page.locator('#close-dialog').click();
@@ -196,6 +203,9 @@ try{
    assert.equal(await page.locator('.week-table tbody tr').count(),7);
    assert.equal(await page.locator('.week-cell').count(),91);
    assert.equal(await page.locator('.week-cell.chosen').count(),28);
+   assert.equal(await page.locator('.week-chosen-band').count(),1);
+   assert.equal(await page.locator('.week-periods th.chosen').count(),4);
+   assert.equal(await page.locator('.week-chosen-band').evaluate(el=>getComputedStyle(el).borderTopWidth),'1px');
    await page.screenshot({path:'artifacts/desktop-detail.png'});
    await page.keyboard.press('Escape');
    await page.waitForFunction(()=>!document.querySelector('#room-dialog').open);
@@ -300,7 +310,7 @@ try{
    assert.equal(await p.locator('.room-card').count(),24);
    await p.locator('.room-card button').first().click();assert.equal(await p.locator('#room-dialog').isVisible(),true);
    await p.waitForSelector('.week-table');
-   assert.equal(await p.locator('.week-cell').count(),91);assert.equal(await p.locator('.week-cell.chosen').count(),21);await p.screenshot({path:'artifacts/mobile-detail.png'});
+   assert.equal(await p.locator('.week-cell').count(),91);assert.equal(await p.locator('.week-cell.chosen').count(),21);assert.equal(await p.locator('.week-chosen-band').count(),3);await p.screenshot({path:'artifacts/mobile-detail.png'});
    await p.locator('#close-dialog').click();
    await p.waitForFunction(()=>!document.querySelector('#room-dialog').open);
    await p.setViewportSize({width:320,height:900});await p.evaluate(()=>scrollTo(0,0));

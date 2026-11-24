@@ -48,6 +48,7 @@ let activeRoomId = null;
 let applyingUrl = false;
 let nowBlock = null;
 let roomClosing = false;
+let weekBandObserver = null;
 const initialUrlState = parseUrlState();
 
 const analytics = (() => {
@@ -114,6 +115,15 @@ function applyTheme(preference,{persist=true}={}) {
   if(persist)try{localStorage.setItem('roomgap-theme',themePreference);}catch{}
 }
 function selectedPeriodList() { return [...selectedPeriods].filter(period => VISIBLE_PERIODS.includes(period)).sort((a,b)=>a-b); }
+function selectedPeriodRuns() {
+  const runs = [];
+  for (const period of selectedPeriodList()) {
+    const last = runs[runs.length - 1];
+    if (last && period === last[1] + 1) last[1] = period;
+    else runs.push([period, period]);
+  }
+  return runs;
+}
 function sanitizePeriods(periods) { return new Set([...periods].filter(period => VISIBLE_PERIODS.includes(period))); }
 function selectedPeriodText() {
   const periods=selectedPeriodList(),groups=[];
@@ -861,6 +871,44 @@ function setView(view, {track=true}={}) {
   renderResults();
 }
 
+function paintWeekBands() {
+  const frame = document.querySelector('#dialog-body .week-frame');
+  if (!frame) return;
+  frame.querySelectorAll('.week-chosen-band').forEach(band => band.remove());
+  const rows = frame.querySelectorAll('.week-table tbody tr');
+  const runs = selectedPeriodRuns();
+  if (!rows.length || !runs.length) return;
+  const firstRow = rows[0], lastRow = rows[rows.length - 1];
+  const frameRect = frame.getBoundingClientRect();
+  for (const [start, end] of runs) {
+    const firstCell = firstRow.cells[VISIBLE_PERIODS.indexOf(start) + 1];
+    const lastCell = lastRow.cells[VISIBLE_PERIODS.indexOf(end) + 1];
+    if (!firstCell || !lastCell) continue;
+    const firstRect = firstCell.getBoundingClientRect();
+    const lastRect = lastCell.getBoundingClientRect();
+    const band = document.createElement('span');
+    band.className = 'week-chosen-band';
+    band.setAttribute('aria-hidden', 'true');
+    band.style.left = `${firstRect.left - frameRect.left}px`;
+    band.style.top = `${firstRect.top - frameRect.top}px`;
+    band.style.width = `${lastRect.right - firstRect.left}px`;
+    band.style.height = `${lastRect.bottom - firstRect.top}px`;
+    frame.append(band);
+  }
+}
+function refreshWeekBands() {
+  weekBandObserver?.disconnect();
+  weekBandObserver = null;
+  const frame = document.querySelector('#dialog-body .week-frame');
+  if (!frame) return;
+  paintWeekBands();
+  if (typeof ResizeObserver === 'function') {
+    weekBandObserver = new ResizeObserver(paintWeekBands);
+    weekBandObserver.observe(frame);
+    const table = frame.querySelector('.week-table');
+    if (table) weekBandObserver.observe(table);
+  }
+}
 function roomWeekMarkup(room, weekData) {
   const index = roomIndexById.get(room.id);
   const today = controls.date.value;
@@ -891,13 +939,15 @@ function roomWeekMarkup(room, weekData) {
     <div class="detail-date"><strong>${prettyDate(today)}</strong><span>第 ${teachingWeek(today,catalog.term)} 周</span></div>
     <div class="legend"><span><i></i>空闲</span><span><i class="busy"></i>占用</span><span><i class="unknown"></i>未知</span><span><i class="chosen"></i>所选</span></div>
     <div class="week-scroll">
-      <table class="week-table" aria-label="本周 13 节安排（第9节为空档）">
-        <thead>
-          <tr class="week-groups"><th aria-hidden="true"></th>${PERIOD_GROUPS.map(group=>`<th colspan="${group.periods.length}">${group.label}</th>`).join('')}</tr>
-          <tr class="week-periods"><th aria-hidden="true"></th>${VISIBLE_PERIODS.map(period=>`<th>${period}</th>`).join('')}</tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
+      <div class="week-frame">
+        <table class="week-table" aria-label="本周 13 节安排（第9节为空档）">
+          <thead>
+            <tr class="week-groups"><th aria-hidden="true"></th>${PERIOD_GROUPS.map(group=>`<th colspan="${group.periods.length}">${group.label}</th>`).join('')}</tr>
+            <tr class="week-periods"><th aria-hidden="true"></th>${VISIBLE_PERIODS.map(period=>`<th${selectedPeriods.has(period) ? ' class="chosen"' : ''}>${period}</th>`).join('')}</tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
     </div>
     <div class="week-summary">
       <strong>${prettyDate(today)}</strong>
@@ -921,6 +971,8 @@ async function openRoom(roomId, trigger, {fromUrl = false} = {}) {
   const token = dialogToken;
   if (!fromUrl) updateUrl({push: true});
   $('dialog-title').textContent = room.name;
+  weekBandObserver?.disconnect();
+  weekBandObserver = null;
   $('dialog-body').className = 'dialog-body';
   $('dialog-body').innerHTML = `<div class="detail-top"><p class="dialog-location">${esc(room.campus)}<span class="location-slash">/</span>${esc(buildingLabel(room))} · ${floorLabel(floorOf(room))}</p><div class="room-meta"><span>${icon('people')}${room.capacity == null ? '容量未注明' : `${esc(room.capacity)} 人`}</span>${room.type ? `<span class="type-label">${esc(room.type)}</span>` : ''}</div></div><div class="week-loading"><span class="spinner" aria-hidden="true"></span><p>正在加载本周 7 天安排…</p></div>`;
   $('room-dialog').showModal();
@@ -950,6 +1002,7 @@ async function openRoom(roomId, trigger, {fromUrl = false} = {}) {
   }
   if (token !== dialogToken || !$('room-dialog').open) return;
   $('dialog-body').innerHTML = roomWeekMarkup(room, weekData);
+  refreshWeekBands();
 }
 
 async function initialize() {
@@ -1150,8 +1203,11 @@ $('close-dialog').onclick=()=>closeRoomDialog();
 $('room-dialog').addEventListener('click',event=>{if(event.target===$('room-dialog')){const rect=$('room-dialog').getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)closeRoomDialog();}});
 $('room-dialog').addEventListener('cancel',event=>{event.preventDefault();closeRoomDialog();});
 $('room-dialog').addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();closeRoomDialog();}});
+$('room-dialog').addEventListener('animationend',event=>{if(event.target===$('room-dialog'))paintWeekBands();});
 $('room-dialog').addEventListener('close',()=>{
   dialogToken++;
+  weekBandObserver?.disconnect();
+  weekBandObserver=null;
   activeRoomId=null;
   roomClosing=false;
   document.body.style.overflow='';
