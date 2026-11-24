@@ -73,7 +73,7 @@ const analytics = (() => {
 })();
 analytics.track('page_view');
 
-const rippleSelector='.query-submit, .hero-quick-button, .period-option, .building-card';
+const rippleSelector='.query-submit, .period-option, .building-card';
 function spawnButtonRipple(event){
   const button=event.target.closest?.(rippleSelector);
   if(!button||button.disabled||event.button!==0||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
@@ -405,16 +405,51 @@ function togglePeriod(period, {fromMatrix = false} = {}) {
     : document.querySelector(`.period-option[data-period="${period}"]`);
   (target || document.querySelector(`.period-option[data-period="${period}"]`))?.focus({preventScroll: true});
 }
-function closeRoomDialog() {
-  if (!$('room-dialog').open || roomClosing) return;
-  if (activeRoomId && history.state?.pushed === true && history.state?.room === activeRoomId && new URLSearchParams(location.search).has('room')) {
-    roomClosing = true;
-    history.back();
-    return;
+let roomCloseTimer = null;
+let roomCloseEnd = null;
+function cancelRoomCloseAnimation() {
+  const dialog = $('room-dialog');
+  if (roomCloseEnd) {
+    dialog.removeEventListener('animationend', roomCloseEnd);
+    roomCloseEnd = null;
   }
-  $('room-dialog').close();
+  clearTimeout(roomCloseTimer);
+  roomCloseTimer = null;
+  dialog.classList.remove('is-closing');
+}
+function finishRoomClose() {
+  const dialog = $('room-dialog');
+  if (dialog.open) dialog.close();
   activeRoomId = null;
   updateUrl({replace:true});
+}
+function closeRoomDialog() {
+  const dialog = $('room-dialog');
+  if (!dialog.open || roomClosing) return;
+  const viaHistory = Boolean(activeRoomId && history.state?.pushed === true && history.state?.room === activeRoomId && new URLSearchParams(location.search).has('room'));
+  roomClosing = true;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (viaHistory) history.back();
+    else finishRoomClose();
+    return;
+  }
+  dialog.classList.add('is-closing');
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    if (roomCloseEnd) {
+      dialog.removeEventListener('animationend', roomCloseEnd);
+      roomCloseEnd = null;
+    }
+    clearTimeout(roomCloseTimer);
+    roomCloseTimer = null;
+    if (viaHistory) history.back();
+    else finishRoomClose();
+  };
+  roomCloseEnd = event => { if (event.target === dialog) finish(); };
+  dialog.addEventListener('animationend', roomCloseEnd);
+  roomCloseTimer = setTimeout(finish, 240);
 }
 function showState(kind, title, description, action, onAction) {
   matches = [];
@@ -638,7 +673,7 @@ function renderFloorStack(entries) {
     const active = currentFloor === floor;
     return `<section class="floor-slab${active ? ' is-active' : ''}" style="--floor:${index}">
       <button type="button" class="floor-slab-label" data-stack-floor="${floor}" aria-pressed="${active}">
-        <strong>${floor === 'unknown' ? '未标注' : `${floor}F`}</strong>
+        <strong${floor === 'unknown' ? ' class="is-unknown"' : ''}>${floor === 'unknown' ? '未标注' : `${floor}F`}</strong>
         <span>${freeCount}/${rooms.length} 空</span>
       </button>
       <div class="floor-slab-rooms">
@@ -964,6 +999,7 @@ async function openRoom(roomId, trigger, {fromUrl = false} = {}) {
   const state = currentDay?.rooms?.[index];
   if (!state) return;
   analytics.track('room_detail', {room: room.name, campus: room.campus, building: buildingLabel(room), floor: floorLabel(floorOf(room))});
+  cancelRoomCloseAnimation();
   detailTrigger = trigger;
   detailRoomId = room.id;
   activeRoomId = room.id;
@@ -1204,8 +1240,9 @@ $('close-dialog').onclick=()=>closeRoomDialog();
 $('room-dialog').addEventListener('click',event=>{if(event.target===$('room-dialog')){const rect=$('room-dialog').getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)closeRoomDialog();}});
 $('room-dialog').addEventListener('cancel',event=>{event.preventDefault();closeRoomDialog();});
 $('room-dialog').addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();closeRoomDialog();}});
-$('room-dialog').addEventListener('animationend',event=>{if(event.target===$('room-dialog'))paintWeekBands();});
+$('room-dialog').addEventListener('animationend',event=>{if(event.target===$('room-dialog')&&!$('room-dialog').classList.contains('is-closing'))paintWeekBands();});
 $('room-dialog').addEventListener('close',()=>{
+  cancelRoomCloseAnimation();
   dialogToken++;
   weekBandObserver?.disconnect();
   weekBandObserver=null;
@@ -1214,10 +1251,10 @@ $('room-dialog').addEventListener('close',()=>{
   document.body.style.overflow='';
   const focusTarget = detailRoomId ? document.querySelector(`[data-room-id="${CSS.escape(detailRoomId)}"], [data-matrix-room="${CSS.escape(detailRoomId)}"]`) : detailTrigger;
   const fallback = viewMode === 'room' ? $('view-room') : $('view-time');
-  (focusTarget || fallback).focus();
+  (focusTarget || fallback).focus({ preventScroll: true });
   setTimeout(() => {
-    if (focusTarget?.isConnected) focusTarget.focus();
-    else if (fallback?.isConnected) fallback.focus();
+    if (focusTarget?.isConnected) focusTarget.focus({ preventScroll: true });
+    else if (fallback?.isConnected) fallback.focus({ preventScroll: true });
   }, 0);
   detailTrigger=null;
   detailRoomId=null;
@@ -1225,7 +1262,42 @@ $('room-dialog').addEventListener('close',()=>{
 });
 const authorDialog=$('author-dialog');
 let authorCopyTimer;
+let authorCloseTimer = null;
+let authorCloseEnd = null;
+function cancelAuthorCloseAnimation() {
+  if (authorCloseEnd) {
+    authorDialog.removeEventListener('animationend', authorCloseEnd);
+    authorCloseEnd = null;
+  }
+  clearTimeout(authorCloseTimer);
+  authorCloseTimer = null;
+  authorDialog.classList.remove('is-closing');
+}
+function closeAuthorDialog() {
+  if (!authorDialog.open || authorDialog.classList.contains('is-closing')) return;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    authorDialog.close();
+    return;
+  }
+  authorDialog.classList.add('is-closing');
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    if (authorCloseEnd) {
+      authorDialog.removeEventListener('animationend', authorCloseEnd);
+      authorCloseEnd = null;
+    }
+    clearTimeout(authorCloseTimer);
+    authorCloseTimer = null;
+    if (authorDialog.open) authorDialog.close();
+  };
+  authorCloseEnd = event => { if (event.target === authorDialog) finish(); };
+  authorDialog.addEventListener('animationend', authorCloseEnd);
+  authorCloseTimer = setTimeout(finish, 240);
+}
 $('author-trigger').onclick=()=>{
+  cancelAuthorCloseAnimation();
   authorTrigger=document.activeElement;
   clearTimeout(authorCopyTimer);
   $('author-copy-status').textContent='';
@@ -1245,13 +1317,14 @@ $('copy-qq').onclick=async()=>{
     status.textContent='复制失败，请重试';
   }
 };
-$('close-author-dialog').onclick=()=>authorDialog.close();
+$('close-author-dialog').onclick=()=>closeAuthorDialog();
 authorDialog.addEventListener('click',event=>{
   if(event.target!==authorDialog)return;
   const rect=authorDialog.getBoundingClientRect();
-  if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)authorDialog.close();
+  if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)closeAuthorDialog();
 });
-authorDialog.addEventListener('close',()=>{clearTimeout(authorCopyTimer);$('author-copy-status').textContent='';delete $('copy-qq').dataset.copied;document.body.style.overflow='';authorTrigger?.focus();});
+authorDialog.addEventListener('cancel',event=>{event.preventDefault();closeAuthorDialog();});
+authorDialog.addEventListener('close',()=>{cancelAuthorCloseAnimation();clearTimeout(authorCopyTimer);$('author-copy-status').textContent='';delete $('copy-qq').dataset.copied;document.body.style.overflow='';authorTrigger?.focus();});
 const backToTop=$('back-to-top');
 let scrollUpdatePending=false;
 function updateBackToTop() {
@@ -1267,7 +1340,9 @@ window.addEventListener('scroll',()=>{
   scrollUpdatePending=true;
   requestAnimationFrame(updateBackToTop);
 },{passive:true});
-backToTop.addEventListener('click',()=>window.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'}));
+const scrollToTop=()=>window.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+backToTop.addEventListener('click',scrollToTop);
+$('footer-top').addEventListener('click',scrollToTop);
 window.addEventListener('popstate',()=>{
   if(!catalog)return;
   applyUrlState(parseUrlState()).catch(error=>{

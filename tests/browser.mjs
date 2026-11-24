@@ -190,7 +190,10 @@ try{
    await page.waitForFunction(()=>document.querySelector('#author-copy-status').textContent==='已复制到剪贴板');
    assert.equal(await dialog.locator('#author-copy-status').textContent(),'已复制到剪贴板');
    assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),'2675943788');
-   await page.keyboard.press('Escape');assert.equal(await dialog.isVisible(),false);
+   await page.keyboard.press('Escape');
+   await dialog.waitFor({state:'hidden'});
+   await page.waitForFunction(()=>document.activeElement?.id==='author-trigger');
+   assert.equal(await dialog.isVisible(),false);
    assert.equal(await trigger.evaluate(element=>element===document.activeElement),true);
  });
  await check('bottom helper copy uses consistent typography and spacing',async()=>{
@@ -222,6 +225,24 @@ try{
    await page.waitForFunction(id=>document.activeElement?.dataset?.roomId===id,roomId);
    assert.equal(await page.locator('#room-dialog').isVisible(),false);
    assert.equal(await page.locator(`button[data-room-id="${roomId}"]`).evaluate(el=>el===document.activeElement),true);
+ });
+ await check('closing room details keeps the results scroll position',async()=>{
+   const c=await context(),p=await c.newPage();
+   await p.clock.setFixedTime(new Date('2026-09-08T04:00:00Z'));
+   await p.goto(`${base}/?mode=room&building=02%2F3`);await settled(p);
+   await p.locator('#load-more').scrollIntoViewIfNeeded();
+   await p.waitForFunction(()=>document.querySelectorAll('.room-card').length>=48);
+   const trigger=p.locator('.room-card').nth(30).locator('button[data-room-id]');
+   await trigger.scrollIntoViewIfNeeded();await p.waitForTimeout(700);
+   const before=await p.evaluate(()=>scrollY);
+   assert.ok(before>1000,`expected to be scrolled into the results, got ${before}`);
+   await trigger.click();await p.waitForSelector('#room-dialog[open]');await p.waitForSelector('.week-table');
+   await p.locator('#close-dialog').click();
+   await p.waitForFunction(()=>!document.querySelector('#room-dialog').open);
+   await p.waitForTimeout(1000);
+   const after=await p.evaluate(()=>scrollY);
+   assert.ok(after>before*0.5,`expected scroll to stay near ${before}, got ${after}`);
+   await c.close();
  });
  await check('empty results and clear additional filters',async()=>{
    await page.locator('#search').fill('no-room-with-this-name');await count(page,0);
