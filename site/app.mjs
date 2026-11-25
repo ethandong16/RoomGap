@@ -208,7 +208,18 @@ async function applyUrlState(state) {
   if (!catalog) return;
   applyingUrl = true;
   try {
-    const previousDate = currentDay?.date || controls.date.value;
+    const previous = {
+      mode: viewMode,
+      layout: resultsView,
+      date: currentDay?.date || controls.date.value,
+      campus: controls.campus.value,
+      building: controls.building.value,
+      floor: currentFloor,
+      periods: selectedPeriodList().join(','),
+      search: controls.search.value,
+      capacity: controls.capacity.value,
+      type: controls.type.value
+    };
     viewMode = state.mode;
     resultsView = state.layout;
     if ([...controls.campus.options].some(option => option.value === state.campus)) controls.campus.value = state.campus;
@@ -220,11 +231,24 @@ async function applyUrlState(state) {
     controls.type.value = [...controls.type.options].some(option => option.value === state.type) ? state.type : '';
     selectedPeriods = sanitizePeriods(state.periods);
     controls.date.value = dateInTerm(state.date, catalog.term) ? state.date : initialDate(catalog.term).date;
-    renderFloorTabs();
-    renderPeriodPicker();
-    updateViewChrome();
-    if (controls.date.value !== previousDate || !currentDay) await loadSelectedDay();
-    else renderResults();
+    const unchanged = Boolean(currentDay) &&
+      previous.mode === viewMode &&
+      previous.layout === resultsView &&
+      previous.date === controls.date.value &&
+      previous.campus === controls.campus.value &&
+      previous.building === controls.building.value &&
+      previous.floor === currentFloor &&
+      previous.periods === selectedPeriodList().join(',') &&
+      previous.search === controls.search.value &&
+      previous.capacity === controls.capacity.value &&
+      previous.type === controls.type.value;
+    if (!unchanged) {
+      renderFloorTabs();
+      renderPeriodPicker();
+      updateViewChrome();
+      if (controls.date.value !== previous.date || !currentDay) await loadSelectedDay();
+      else renderResults();
+    }
     if (state.room) await openRoom(state.room, null, {fromUrl: true});
     else {
       activeRoomId = null;

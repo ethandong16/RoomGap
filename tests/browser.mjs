@@ -226,13 +226,15 @@ try{
    assert.equal(await page.locator('#room-dialog').isVisible(),false);
    assert.equal(await page.locator(`button[data-room-id="${roomId}"]`).evaluate(el=>el===document.activeElement),true);
  });
- await check('closing room details keeps the results scroll position',async()=>{
+ await check('closing room details keeps the results scroll position and card nodes',async()=>{
    const c=await context(),p=await c.newPage();
    await p.clock.setFixedTime(new Date('2026-09-08T04:00:00Z'));
    await p.goto(`${base}/?mode=room&building=02%2F3`);await settled(p);
    await p.locator('#load-more').scrollIntoViewIfNeeded();
    await p.waitForFunction(()=>document.querySelectorAll('.room-card').length>=48);
    const trigger=p.locator('.room-card').nth(30).locator('button[data-room-id]');
+   const triggerId=await trigger.getAttribute('data-room-id');
+   await trigger.evaluate(el=>{el.dataset.probe='keep';el.closest('.room-card').dataset.probe='keep';});
    await trigger.scrollIntoViewIfNeeded();await p.waitForTimeout(700);
    const before=await p.evaluate(()=>scrollY);
    assert.ok(before>1000,`expected to be scrolled into the results, got ${before}`);
@@ -242,6 +244,12 @@ try{
    await p.waitForTimeout(1000);
    const after=await p.evaluate(()=>scrollY);
    assert.ok(after>before*0.5,`expected scroll to stay near ${before}, got ${after}`);
+   const survivor=await p.evaluate(id=>{
+     const button=document.querySelector(`[data-room-id="${CSS.escape(id)}"]`);
+     const card=button?.closest('.room-card');
+     return {button:button?.dataset.probe||null,card:card?.dataset.probe||null,running:card?card.getAnimations().filter(animation=>animation.animationName==='cardIn'&&animation.playState==='running').length:null};
+   },triggerId);
+   assert.deepEqual(survivor,{button:'keep',card:'keep',running:0});
    await c.close();
  });
  await check('empty results and clear additional filters',async()=>{
