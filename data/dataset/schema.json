@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "catalogDigest": "bf32d876bf057f1dc90d96486dc419abfb6432adafed2192b6cf481c02d05786",
+  "catalogDigest": "554464fea146650eced60b1b3050413b68b8e198081f5339804775f08eff1498",
   "periods": 13,
   "roomReference": "room字段为rooms.json的零起始数组索引",
   "weekBundle": "weeks/YYYY-MM-DD.json；weekStart为周一，rooms为候选教室在rooms.json的下标，days[].masks与rooms顺序一致，元素为[freeMask,occupiedMask,unknownMask]",
